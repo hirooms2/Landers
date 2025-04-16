@@ -102,16 +102,17 @@ def inference(args):
     print('length rank:',len(rank))
     recall_score(rec_lists, rank, ks=[1,3,5,10,20,50])
 
-    for i in range(len(rank)):
+    if args.store_results:
+        for i in range(len(rank)):
 
-        ranked_list = {j:id2name[j] for j in rank[i]}
+            ranked_list = {j:id2name[j] for j in rank[i]}
 
-        test_data[i]["cand_list"] = ranked_list
+            test_data[i]["cand_list"] = ranked_list
 
-        with open(to_json, "w", encoding="utf-8") as fwr:
-            for example in test_data:
-                fwr.write(json.dumps(example))
-                fwr.write("\n")
+            with open(to_json, "w", encoding="utf-8") as fwr:
+                for example in test_data:
+                    fwr.write(json.dumps(example))
+                    fwr.write("\n")
 
 
 
