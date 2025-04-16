@@ -79,19 +79,19 @@ def main():
     mdhm = str(datetime.now(timezone('Asia/Seoul')).strftime('%m%d%H%M%S'))
     training_args.output_dir = os.path.join('model_weights', training_args.output_dir, mdhm)
     training_args.save_strategy="no"
-    training_args.deepspeed= os.path.join(home, training_args.deepspeed) if training_args.deepspeed != '' else None,
-    print(training_args.deepspeed)
-    print(training_args.deepspeed)
-    print(training_args.deepspeed)
-    print(training_args.deepspeed)
-    print(training_args.deepspeed)
-    print(training_args.deepspeed)
-    print(training_args.deepspeed)
-    print(training_args.deepspeed)
-    print(training_args.deepspeed)
-    print(training_args.deepspeed)
-    print(training_args.deepspeed)
-    print(training_args.deepspeed)
+    # training_args.deepspeed= os.path.join(home, training_args.deepspeed) if training_args.deepspeed != '' else None,
+    # print(training_args.deepspeed)
+    # print(training_args.deepspeed)
+    # print(training_args.deepspeed)
+    # print(training_args.deepspeed)
+    # print(training_args.deepspeed)
+    # print(training_args.deepspeed)
+    # print(training_args.deepspeed)
+    # print(training_args.deepspeed)
+    # print(training_args.deepspeed)
+    # print(training_args.deepspeed)
+    # print(training_args.deepspeed)
+    # print(training_args.deepspeed)
 
     if (
         os.path.exists(training_args.output_dir)
