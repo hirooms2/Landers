@@ -37,17 +37,6 @@ if sysChecker() == 'Linux':
     home = os.path.dirname(__file__)
 elif sysChecker() == "Windows":
     home = ''
-print(home)
-print(home)
-print(home)
-print(home)
-print(home)
-print(home)
-print(home)
-print(home)
-print(home)
-print(home)
-print(home)
 
 class QueryEvalCallback(TrainerCallback):
     def __init__(self, output_dir):
@@ -92,6 +81,18 @@ def main():
     training_args.save_strategy="no"
     training_args.deepspeed= os.path.join(home, training_args.deepspeed) if training_args.deepspeed != '' else None,
     print(training_args.deepspeed)
+    print(training_args.deepspeed)
+    print(training_args.deepspeed)
+    print(training_args.deepspeed)
+    print(training_args.deepspeed)
+    print(training_args.deepspeed)
+    print(training_args.deepspeed)
+    print(training_args.deepspeed)
+    print(training_args.deepspeed)
+    print(training_args.deepspeed)
+    print(training_args.deepspeed)
+    print(training_args.deepspeed)
+
     if (
         os.path.exists(training_args.output_dir)
         and os.listdir(training_args.output_dir)
