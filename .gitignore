@@ -5,3 +5,4 @@ model_weights/
 results/
 __pycache__/
 *.pyc
+*.pt
