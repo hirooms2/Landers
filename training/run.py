@@ -12,9 +12,9 @@ from datetime import datetime
 
 from transformers import AutoConfig, AutoTokenizer, HfArgumentParser, Trainer, set_seed, TrainingArguments, TrainerState, TrainerControl, TrainerCallback
 
-from training.arguments import CustomTrainingArguments, DataArguments, ModelArguments
-from training.data import CustomCollator, CustomDataset, CustomRandomSampler
-from training.model import GritLMTrainModel
+from arguments import CustomTrainingArguments, DataArguments, ModelArguments
+from data import CustomCollator, CustomDataset, CustomRandomSampler
+from model import GritLMTrainModel
 
 BASE_BOS: str = "<s>"
 TURN_SEP: str = "\n"
