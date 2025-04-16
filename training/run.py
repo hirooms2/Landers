@@ -12,9 +12,9 @@ from datetime import datetime
 
 from transformers import AutoConfig, AutoTokenizer, HfArgumentParser, Trainer, set_seed, TrainingArguments, TrainerState, TrainerControl, TrainerCallback
 
-from .arguments import CustomTrainingArguments, DataArguments, ModelArguments
-from .data import CustomCollator, CustomDataset, CustomRandomSampler
-from .model import GritLMTrainModel
+from training.arguments import CustomTrainingArguments, DataArguments, ModelArguments
+from training.data import CustomCollator, CustomDataset, CustomRandomSampler
+from training.model import GritLMTrainModel
 
 BASE_BOS: str = "<s>"
 TURN_SEP: str = "\n"
@@ -74,6 +74,8 @@ def main():
     mdhm = str(datetime.now(timezone('Asia/Seoul')).strftime('%m%d%H%M%S'))
     training_args.output_dir = os.path.join('model_weights', training_args.output_dir, mdhm)
     training_args.save_strategy="no"
+    training_args.deepspeed= training_args.deepspeed if training_args.deepspeed != '' else None,
+
     if (
         os.path.exists(training_args.output_dir)
         and os.listdir(training_args.output_dir)
@@ -258,7 +260,7 @@ def main():
         loss_gen_factor=training_args.loss_gen_factor,
         use_cache=False,
         # Critical to make Mixtral work
-        low_cpu_mem_usage=True,
+        # low_cpu_mem_usage=True,
         quantization_config=quantization_config,
         load_in_4bit=load_in_4bit,
     )
