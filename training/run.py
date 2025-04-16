@@ -75,7 +75,7 @@ def main():
     training_args.output_dir = os.path.join('model_weights', training_args.output_dir, mdhm)
     training_args.save_strategy="no"
     training_args.deepspeed= training_args.deepspeed if training_args.deepspeed != '' else None,
-
+    print(training_args.deepspeed)
     if (
         os.path.exists(training_args.output_dir)
         and os.listdir(training_args.output_dir)
