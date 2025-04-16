@@ -8,7 +8,7 @@ import datasets
 import torch
 from transformers import BatchEncoding, DataCollatorWithPadding, PreTrainedTokenizer
 
-from arguments import DataArguments
+from .arguments import DataArguments
 
 logger = logging.getLogger(__name__)
 
