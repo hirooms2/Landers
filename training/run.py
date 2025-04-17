@@ -509,19 +509,19 @@ def main():
     Path(training_args.output_dir).mkdir(parents=True, exist_ok=True)
 
     
-    d_rep= []
-    for i in tqdm(range(0, len(documents), 64)):
-        batch_documents = documents[i: i + 64]
-        d_rep.append(model.encode(batch_documents, instruction=gritlm_instruction('')))
-    d_rep=np.concatenate(d_rep, axis=0)
-    print('document shape:',torch.from_numpy(d_rep).shape)
+    # d_rep= []
+    # for i in tqdm(range(0, len(documents), 64)):
+    #     batch_documents = documents[i: i + 64]
+    #     d_rep.append(model.encode(batch_documents, instruction=gritlm_instruction('')))
+    # d_rep=np.concatenate(d_rep, axis=0)
+    # print('document shape:',torch.from_numpy(d_rep).shape)
 
-    # d_rep: numpy array, shape = (num_items, hidden_size)
-    d_tensor = torch.from_numpy(d_rep).to(model.item_proj.weight.device)
+    # # d_rep: numpy array, shape = (num_items, hidden_size)
+    # d_tensor = torch.from_numpy(d_rep).to(model.item_proj.weight.device)
 
-    # weight 초기화 (학습 가능 상태 유지)
-    with torch.no_grad():
-        model.item_proj.weight.copy_(d_tensor)
+    # # weight 초기화 (학습 가능 상태 유지)
+    # with torch.no_grad():
+    #     model.item_proj.weight.copy_(d_tensor)
 
     # Training
     logger.info("Starting training")
