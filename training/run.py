@@ -57,6 +57,12 @@ elif sysChecker() == "Windows":
 #         path = os.path.join(self.saved_model_path, 'E' + str(int(epoch)))
 #         logger.info(f'Start saving epoch: {epoch}')   
 #         model.save_pretrained(path)
+# def get_peft_state_non_lora_maybe_zero_3(named_params, require_grad_only=True):
+#     to_return = {k: t for k, t in named_params if "lora_" not in k}
+#     if require_grad_only:
+#         to_return = {k: t for k, t in to_return.items() if t.requires_grad}
+#     to_return = {k: maybe_zero_3(v) for k, v in to_return.items()}
+#     return to_return
 
 
 class QueryEvalCallback(TrainerCallback):
@@ -76,9 +82,12 @@ class QueryEvalCallback(TrainerCallback):
 
         # 2. Custom layer 포함한 나머지 파라미터 저장
         # → wrapper_model 전체 기준에서 PEFT가 아닌 것만 추출
-        from peft.utils.save_and_load import get_peft_state_non_lora_maybe_zero_3
-
-        non_lora_state_dict = get_peft_state_non_lora_maybe_zero_3(wrapper_model.named_parameters())
+        # 전체 모델의 state_dict에서 'lora_'가 포함되지 않은 파라미터만 선택
+        non_lora_state_dict = {
+            k: v.cpu()
+            for k, v in wrapper_model.named_parameters()
+            if "lora_" not in k and v.requires_grad
+        }
         torch.save(non_lora_state_dict, os.path.join(path, 'non_lora_trainables.bin'))
 
         # 3. config도 같이 저장
