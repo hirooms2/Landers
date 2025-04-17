@@ -18,6 +18,7 @@ def parse_args():
     parser.add_argument('--query_max_len', type=int, default='128')
     parser.add_argument('--passage_max_len', type=int, default='128')
     parser.add_argument("--store_results", action='store_true', help="store or not")
+    parser.add_argument('--linear', type=bool, default=False)
 
     # /home/user/junpyo/gritlm/model_weights/test1/0413164554/E5
     args = parser.parse_args()

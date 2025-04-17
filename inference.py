@@ -68,12 +68,12 @@ def inference(args):
     rec_lists = [[name2id[i]] for i in labels]
 
 
-    # d_rep= []
-    # for i in tqdm(range(0, len(documents), 64)):
-    #     batch_documents = documents[i: i + 64]
-    #     d_rep.append(model.encode(batch_documents, instruction=gritlm_instruction(doc_instr)))
-    # d_rep=np.concatenate(d_rep, axis=0)
-    # print('document shape:',torch.from_numpy(d_rep).shape)
+    d_rep= []
+    for i in tqdm(range(0, len(documents), 64)):
+        batch_documents = documents[i: i + 64]
+        d_rep.append(model.encode(batch_documents, instruction=gritlm_instruction(doc_instr)))
+    d_rep=np.concatenate(d_rep, axis=0)
+    print('document shape:',torch.from_numpy(d_rep).shape)
 
     rank = []
 
@@ -83,8 +83,11 @@ def inference(args):
 
         # print('queries shape:', torch.from_numpy(q_rep).shape) 
 
-        cos_sim = F.cosine_similarity(torch.from_numpy(q_rep).unsqueeze(1), torch.from_numpy(d_rep).unsqueeze(0),dim=-1)
-        cos_sim = torch.where(torch.isnan(cos_sim), torch.full_like(cos_sim,0), cos_sim)
+        if not args.linear:
+            cos_sim = F.cosine_similarity(torch.from_numpy(q_rep).unsqueeze(1), torch.from_numpy(d_rep).unsqueeze(0),dim=-1)
+            cos_sim = torch.where(torch.isnan(cos_sim), torch.full_like(cos_sim,0), cos_sim)
+        else:
+            cos_sim = model.item_proj(q_rep)
         # print("cos_sim shape:", cos_sim.shape)
         # print("cos_sim:", cos_sim)
 

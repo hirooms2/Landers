@@ -105,7 +105,7 @@ def filter_too_long_instructions(tokenizer, dataset, query_max_len, passage_max_
 class myArgument:
     db_json: str = field(default='')
     home: str = field(default=os.path.dirname(__file__))
-
+    linear: bool = field(default=False)
 
 def main():
     parser = HfArgumentParser((ModelArguments, DataArguments, CustomTrainingArguments, myArgument))
@@ -308,7 +308,7 @@ def main():
         # low_cpu_mem_usage=True,
         quantization_config=quantization_config,
         load_in_4bit=load_in_4bit,
-        num_items = len(feature2idx)
+        num_items = len(feature2idx) if my_args.linear else 0
     )
     # Add special token for embed
     if model_args.pooling_method == "lasttoken":
