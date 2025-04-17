@@ -62,7 +62,6 @@ class QueryEvalCallback(TrainerCallback):
         epoch = state.epoch
         path = os.path.join(self.saved_model_path, f'E{int(epoch)}')
 
-        os.makedirs(path, exist_ok=True)
         logger.info(f'Start saving epoch: {epoch}')
 
         # 1. PEFT LoRA 파라미터만 저장
