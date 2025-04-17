@@ -67,19 +67,13 @@ def inference(args):
 
     rec_lists = [[name2id[i]] for i in labels]
 
-    # if os.path.exists(embeddings_path):
-    #     print("loading embeddings form file")
-    #     d_rep = torch.load(embeddings_path)
-    # else:
-    d_rep= []
-    for i in tqdm(range(0, len(documents), 64)):
-        batch_documents = documents[i: i + 64]
-        d_rep.append(model.encode(batch_documents, instruction=gritlm_instruction(doc_instr)))
-    d_rep=np.concatenate(d_rep, axis=0)
-    torch.save(d_rep, embeddings_path)
-    # print(d_rep[0][:100])
-    print('document shape:',torch.from_numpy(d_rep).shape)
-    # print("saving embeddigns to file ...") 
+
+    # d_rep= []
+    # for i in tqdm(range(0, len(documents), 64)):
+    #     batch_documents = documents[i: i + 64]
+    #     d_rep.append(model.encode(batch_documents, instruction=gritlm_instruction(doc_instr)))
+    # d_rep=np.concatenate(d_rep, axis=0)
+    # print('document shape:',torch.from_numpy(d_rep).shape)
 
     rank = []
 

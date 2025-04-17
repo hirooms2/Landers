@@ -4,6 +4,7 @@ import numpy as np
 import torch
 from tqdm import tqdm
 from transformers import AutoModel, AutoModelForCausalLM, AutoTokenizer
+from torch import nn
 
 
 class GritLM(torch.nn.Module):
@@ -18,6 +19,7 @@ class GritLM(torch.nn.Module):
         embed_eos: str = "",
         attn: str = 'bbcc',
         device: str = "cuda" if torch.cuda.is_available() else "cpu",
+        num_items: int = 0,
         **kwargs, # Passed to the model, e.g. `attn_implementation`, `torch_dtype` etc.
     ) -> None:
         super().__init__()
@@ -51,6 +53,9 @@ class GritLM(torch.nn.Module):
         self.num_gpus = 1
         self.embed_eos = embed_eos
         self.attn = attn
+        self.num_items = num_items
+        self.item_proj = nn.Linear(self.model.config.hidden_size, num_items)
+
         if (self.attn is not None) and self.attn not in ['bbcc', 'cccc', 'bb', 'cc']:
             raise ValueError(f"Mixed attention no longer supported: {self.attn}. Only bbcc, cccc, bb, cc are supported")
 

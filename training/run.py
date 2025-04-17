@@ -9,12 +9,14 @@ import torch
 import torch.distributed as dist
 from pytz import timezone
 from datetime import datetime
+from dataclasses import dataclass, field
 
 from transformers import AutoConfig, AutoTokenizer, HfArgumentParser, Trainer, set_seed, TrainingArguments, TrainerState, TrainerControl, TrainerCallback
 
 from .arguments import CustomTrainingArguments, DataArguments, ModelArguments
 from .data import CustomCollator, CustomDataset, CustomRandomSampler
 from .model import GritLMTrainModel
+
 
 BASE_BOS: str = "<s>"
 TURN_SEP: str = "\n"
@@ -38,16 +40,43 @@ if sysChecker() == 'Linux':
 elif sysChecker() == "Windows":
     home = ''
 
+# class QueryEvalCallback(TrainerCallback):
+#     def __init__(self, output_dir):
+#         self.saved_model_path = output_dir
+
+#     def on_epoch_end(self, args: TrainingArguments, state: TrainerState, control: TrainerControl, **kwargs):
+#         model = kwargs['model'].model
+#         epoch = state.epoch
+#         path = os.path.join(self.saved_model_path, 'E' + str(int(epoch)))
+#         logger.info(f'Start saving epoch: {epoch}')   
+#         model.save_pretrained(path)
+
+
 class QueryEvalCallback(TrainerCallback):
     def __init__(self, output_dir):
         self.saved_model_path = output_dir
 
     def on_epoch_end(self, args: TrainingArguments, state: TrainerState, control: TrainerControl, **kwargs):
-        model = kwargs['model'].model
+        wrapper_model = kwargs['model']  # 전체 wrapper 모델
+        peft_model = wrapper_model.model  # PEFT 모델 내부
         epoch = state.epoch
-        path = os.path.join(self.saved_model_path, 'E' + str(int(epoch)))
-        logger.info(f'Start saving epoch: {epoch}')   
-        model.save_pretrained(path)
+        path = os.path.join(self.saved_model_path, f'E{int(epoch)}')
+
+        os.makedirs(path, exist_ok=True)
+        logger.info(f'Start saving epoch: {epoch}')
+
+        # 1. PEFT LoRA 파라미터만 저장
+        peft_model.save_pretrained(path)
+
+        # 2. Custom layer 포함한 나머지 파라미터 저장
+        # → wrapper_model 전체 기준에서 PEFT가 아닌 것만 추출
+        from peft.utils.save_and_load import get_peft_state_non_lora_maybe_zero_3
+
+        non_lora_state_dict = get_peft_state_non_lora_maybe_zero_3(wrapper_model.named_parameters())
+        torch.save(non_lora_state_dict, os.path.join(path, 'non_lora_trainables.bin'))
+
+        # 3. config도 같이 저장
+        peft_model.config.save_pretrained(path)
 
 
 def args_to_dtype(args):
@@ -73,12 +102,25 @@ def filter_too_long_instructions(tokenizer, dataset, query_max_len, passage_max_
     num_proc = max(multiprocessing.cpu_count()-2, 1) if len(dataset) > 5000 else 1
     return dataset.filter(filter_fn, num_proc=num_proc, load_from_cache_file=True)
 
+@dataclass
+class myArgument:
+    db_json: str = field(default='')
+    home: str = field(default=os.path.dirname(__file__))
+
+
 def main():
-    parser = HfArgumentParser((ModelArguments, DataArguments, CustomTrainingArguments))
-    model_args, data_args, training_args = parser.parse_args_into_dataclasses()
+    parser = HfArgumentParser((ModelArguments, DataArguments, CustomTrainingArguments, myArgument))
+    model_args, data_args, training_args, my_args = parser.parse_args_into_dataclasses()
     mdhm = str(datetime.now(timezone('Asia/Seoul')).strftime('%m%d%H%M%S'))
     training_args.output_dir = os.path.join('model_weights', training_args.output_dir, mdhm)
     training_args.save_strategy="no"
+
+    db_path = os.path.join(my_args.home, 'crs_data', my_args.db_json)
+    title2feature = json.load(open(db_path, 'r', encoding='utf-8'))
+    feature2idx = {v: idx for idx, (k, v) in enumerate(title2feature.items())}
+
+    # all_items = list(db.keys())
+    # num_items = len(all_items)
 
     if (
         os.path.exists(training_args.output_dir)
@@ -267,6 +309,7 @@ def main():
         # low_cpu_mem_usage=True,
         quantization_config=quantization_config,
         load_in_4bit=load_in_4bit,
+        num_items = len(feature2idx)
     )
     # Add special token for embed
     if model_args.pooling_method == "lasttoken":
@@ -322,6 +365,7 @@ def main():
         full_bs=training_args.per_device_train_batch_size,
         generative_bs=training_args.per_device_generative_bs,
         max_seq_len=max(data_args.query_max_len, data_args.passage_max_len, data_args.generative_max_len),
+        item_db = feature2idx
     )
 
     trainer_kwargs = {

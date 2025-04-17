@@ -23,6 +23,7 @@ class CustomDataset(torch.utils.data.Dataset):
         full_bs: int = None,
         generative_bs: int = None,
         max_seq_len: int = 2048,
+        item_db = None
     ):
         self.indices_emb, self.indices_gen = None, None
         if mode == 'unified':
@@ -41,6 +42,7 @@ class CustomDataset(torch.utils.data.Dataset):
         self.args = args
         self.tokenizer = tokenizer
         self.mode = mode
+        self.item_db = item_db
 
         # Too long items will be stuck in communication so cut them on the fly
         self.max_char_len = max_seq_len * 10
@@ -109,6 +111,7 @@ class CustomDataset(torch.utils.data.Dataset):
 
             passages = []
             pos = random.choice(self.ds_embedding[item]['pos'])
+            title = self.item_db[pos[1]]
 
             if isinstance(pos, str):
                 pos = pos[:self.max_char_len]
@@ -144,7 +147,7 @@ class CustomDataset(torch.utils.data.Dataset):
             generative = self.ds_generative[item]["text"]
 
         self.n_samples -= 1
-        return query, passages, generative
+        return query, passages, generative, title
 
 @dataclass
 class CustomCollator(DataCollatorWithPadding):
@@ -177,12 +180,14 @@ class CustomCollator(DataCollatorWithPadding):
         query = [f[0] for f in features]
         passage = [f[1] for f in features]
         generative = [f[2] for f in features]
+        item_labels = [f[3] for f in features]
 
         # Flatten if list of lists
         if isinstance(passage[0], list):
             passage = sum(passage, [])
 
         features = {}
+        features['item_labels'] = torch.LongTensor(item_labels)
 
         # If each sample is a tuple it is of format (instruction, text)
         q_instruction_lens, g_instruction_lens = None, None

@@ -7,6 +7,7 @@ import torch.distributed as dist
 from torch import Tensor
 from transformers import AutoModel
 from transformers.file_utils import ModelOutput
+from torch import nn
 
 from gritlm import GritLM
 
@@ -116,6 +117,7 @@ class GritLMTrainModel(GritLM):
         negatives_cross_device: bool = False,
         loss_gen_type: str = "mixed",
         loss_gen_factor: float = None,
+        num_items: int = 0,
         **kwargs,
     ):
         super().__init__(**kwargs, is_inference=False)
@@ -131,6 +133,9 @@ class GritLMTrainModel(GritLM):
                 self.model.config.vocab_size, loss_gen_type, loss_gen_factor
             )
         self.config = self.model.config # Required for accelerate DeepSpeed integration
+
+        self.num_items = num_items
+        self.item_proj = nn.Linear(self.model.config.hidden_size, self.num_items)
 
     def encode(self, features):
         if features is None: return None
@@ -174,6 +179,7 @@ class GritLMTrainModel(GritLM):
         p_reps: Optional[torch.Tensor] = None,
         q_grad: bool = True,
         p_grad: bool = True,
+        item_labels = None,
     ):
         """
         Args:
@@ -199,18 +205,21 @@ class GritLMTrainModel(GritLM):
             else:
                 with torch.no_grad():
                     q_reps = self.encode(query)
-
-        if (p_reps is None) and (passage is not None):
-            if p_grad:
-                p_reps = self.encode(passage)
-            else:
-                with torch.no_grad():
+        if self.num_items == 0:
+            if (p_reps is None) and (passage is not None):
+                if p_grad:
                     p_reps = self.encode(passage)
-        # print(q_reps.size())    
-        loss_emb = self.emb_loss_fn(
-            q_reps, p_reps
-        ) if (q_reps is not None and p_reps is not None) else None        
-
+                else:
+                    with torch.no_grad():
+                        p_reps = self.encode(passage)
+            # print(q_reps.size())    
+            loss_emb = self.emb_loss_fn(
+                q_reps, p_reps
+            ) if (q_reps is not None and p_reps is not None) else None
+        else:
+            logits = self.item_proj(q_reps) # [B, I]
+            loss_emb = nn.CrossEntropyLoss()(logits, item_labels)
+            
         loss = sum([x for x in [loss_emb, loss_gen] if x is not None])
 
         # Also return q_reps in case of GradCache
