@@ -7,6 +7,9 @@ import random
 import datasets
 import torch
 import torch.distributed as dist
+import numpy as np
+from tqdm import tqdm
+
 from pytz import timezone
 from datetime import datetime
 from dataclasses import dataclass, field
@@ -17,6 +20,10 @@ from .arguments import CustomTrainingArguments, DataArguments, ModelArguments
 from .data import CustomCollator, CustomDataset, CustomRandomSampler
 from .model import GritLMTrainModel
 
+
+
+def gritlm_instruction(instruction):
+    return "<|user|>\n" + instruction + "\n<|embed|>\n" if instruction else "<|embed|>\n"
 
 BASE_BOS: str = "<s>"
 TURN_SEP: str = "\n"
@@ -116,6 +123,8 @@ def main():
 
     db_path = os.path.join(my_args.home, 'crs_data', my_args.db_json)
     title2feature = json.load(open(db_path, 'r', encoding='utf-8'))
+    documents = list(title2feature.values())
+    documents = [doc[:512 * 10] for doc in documents]
     feature2idx = {v: idx for idx, (k, v) in enumerate(title2feature.items())}
 
     # all_items = list(db.keys())
@@ -489,6 +498,21 @@ def main():
         trainer.training_step = training_step.__get__(trainer)
 
     Path(training_args.output_dir).mkdir(parents=True, exist_ok=True)
+
+    
+    d_rep= []
+    for i in tqdm(range(0, len(documents), 64)):
+        batch_documents = documents[i: i + 64]
+        d_rep.append(model.encode(batch_documents, instruction=gritlm_instruction('')))
+    d_rep=np.concatenate(d_rep, axis=0)
+    print('document shape:',torch.from_numpy(d_rep).shape)
+
+    # d_rep: numpy array, shape = (num_items, hidden_size)
+    d_tensor = torch.from_numpy(d_rep).to(model.item_proj.weight.device)
+
+    # weight 초기화 (학습 가능 상태 유지)
+    with torch.no_grad():
+        model.item_proj.weight.copy_(d_tensor)
 
     # Training
     logger.info("Starting training")
