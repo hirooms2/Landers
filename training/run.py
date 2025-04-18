@@ -513,7 +513,20 @@ def main():
         d_rep= []
         for i in tqdm(range(0, len(documents), 64)):
             batch_documents = documents[i: i + 64]
-            d_rep.append(model.encode(batch_documents, instruction=gritlm_instruction('')))
+            batch_documents = [
+                f'<s><|user|>\nRepresent the topic for retrieval\n<|embed|>\n{f}' for f in batch_documents
+            ]
+            passage = tokenizer(
+                batch_documents,
+                padding=True,
+                truncation=True,
+                max_length=128,
+                return_tensors="pt",
+                add_special_tokens=False, # BOS / EOS is already in the prompt
+            ).to('cuda')
+            with torch.no_grad():
+                rep = model.encode(passage).cpu()
+                d_rep.append(rep)
         d_rep=np.concatenate(d_rep, axis=0)
         print('document shape:',torch.from_numpy(d_rep).shape)
 
