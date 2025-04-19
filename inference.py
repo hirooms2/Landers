@@ -36,10 +36,6 @@ def inference(args):
     saved_time = model_path.split('/')[-2]
     to_json = os.path.join(args.home, 'results', f"{saved_time}_{args.to_json}.jsonl")
 
-    # Loads the model for both capabilities; If you only need embedding pass `mode="embedding"` to save memory (no lm head)
-    model = GritLM("GritLM/GritLM-7B", mode='embedding', torch_dtype="auto")
-    # model = GritLM("GritLM/GritLM-7B", torch_dtype="auto")
-    model.model = PeftModel.from_pretrained(model.model, model_path)
     # merged_model = lora_model.merge_and_unload()
     # model.model = lora_model
     # [(i,k) for i,k in lora_model.named_parameters()][0]
@@ -67,6 +63,15 @@ def inference(args):
 
     rec_lists = [[name2id[i]] for i in labels]
 
+      # Loads the model for both capabilities; If you only need embedding pass `mode="embedding"` to save memory (no lm head)
+    model = GritLM("GritLM/GritLM-7B", mode='embedding', torch_dtype="auto", num_items=len(all_names) if args.linear else 0)
+    # model = GritLM("GritLM/GritLM-7B", torch_dtype="auto")
+    model.model = PeftModel.from_pretrained(model.model, model_path)
+
+    if args.linear:
+        non_lora_path = os.path.join(model_path, "non_lora_trainables.bin")
+        non_lora_state_dict = torch.load(non_lora_path)
+        model.load_state_dict(non_lora_state_dict, strict=False)    
 
     d_rep= []
     for i in tqdm(range(0, len(documents), 64)):
@@ -87,7 +92,7 @@ def inference(args):
             cos_sim = F.cosine_similarity(torch.from_numpy(q_rep).unsqueeze(1), torch.from_numpy(d_rep).unsqueeze(0),dim=-1)
             cos_sim = torch.where(torch.isnan(cos_sim), torch.full_like(cos_sim,0), cos_sim)
         else:
-            cos_sim = model.item_proj(q_rep)
+            cos_sim = model.item_proj(torch.from_numpy(q_rep))
         # print("cos_sim shape:", cos_sim.shape)
         # print("cos_sim:", cos_sim)
 
