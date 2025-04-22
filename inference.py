@@ -112,8 +112,8 @@ def inference(args):
         for i in tqdm(range(len(rank))):
 
             ranked_list = {j:id2name[j] for j in rank[i]}
-            item_list = [id2name[j] for j in rank[i]][:10]
-            conf_list = conf[i][:10]
+            item_list = [id2name[j] for j in rank[i]][:20]
+            conf_list = conf[i][:20]
 
             # test_data[i]["cand_list"] = ranked_list
             test_data[i]["cand_list"] = item_list
