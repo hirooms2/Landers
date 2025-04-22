@@ -120,9 +120,12 @@ def filter_too_long_instructions(tokenizer, dataset, query_max_len, passage_max_
 @dataclass
 class myArgument:
     db_json: str = field(default='')
+    target_model_path: str = field(default='')
     home: str = field(default=os.path.dirname(__file__))
+    parent_home: str = field(default=os.path.dirname(os.path.dirname(__file__)))
     linear: bool = field(default=False)
     linear_initialize: bool = field(default=False)
+    only_linear: bool = field(default=False)
 
 def main():
     parser = HfArgumentParser((ModelArguments, DataArguments, CustomTrainingArguments, myArgument))
@@ -130,7 +133,11 @@ def main():
     mdhm = str(datetime.now(timezone('Asia/Seoul')).strftime('%m%d%H%M%S'))
     training_args.output_dir = os.path.join('model_weights', training_args.output_dir, mdhm)
     training_args.save_strategy="no"
-
+    if my_args.target_model_path:
+        resume_from_checkpoint = os.path.join(my_args.parent_home, 'model_weights', my_args.target_model_path)
+    else:
+        resume_from_checkpoint = ''
+        
     db_path = os.path.join(my_args.home, 'crs_data', my_args.db_json)
     title2feature = json.load(open(db_path, 'r', encoding='utf-8'))
     documents = list(title2feature.values())
@@ -355,7 +362,7 @@ def main():
                 model.model, use_gradient_checkpointing=training_args.gradient_checkpointing
             )
 
-        from peft import get_peft_model, LoraConfig, TaskType
+        from peft import get_peft_model, LoraConfig, TaskType, set_peft_model_state_dict
         # https://github.com/texttron/tevatron/blob/2e5d00ee21d5a7db0bd2ea1463c9150a572106d4/examples/repllama/repllama.py#L81
         # https://github.com/allenai/open-instruct/blob/9ebcb582cfc243a6dab75b4302fa432784db26c2/open_instruct/finetune.py#L478
         peft_config = LoraConfig(
@@ -374,6 +381,35 @@ def main():
         #     if param.requires_grad:
         #         print(name, param.shape)
 
+        if resume_from_checkpoint != "":
+            # Check the available weights and load them
+            checkpoint_name = os.path.join(
+                resume_from_checkpoint, "pytorch_model.bin"
+            )  # Full checkpoint
+            if not os.path.exists(checkpoint_name):
+                checkpoint_name = os.path.join(
+                    resume_from_checkpoint, "adapter_model.bin"
+                )  # only LoRA model - LoRA config above has to fit
+                resume_from_checkpoint = (
+                    False  # So the trainer won't try loading its state
+                )
+            # The two files above have a different name depending on how they were saved, but are actually the same.
+            if os.path.exists(checkpoint_name):
+                print(f"Restarting from {checkpoint_name}")
+                # DDP 환경에서 현재 rank에 해당하는 GPU에 로드
+                local_rank = int(os.environ.get("LOCAL_RANK", 0))  # torchrun이 자동 설정함
+                device = torch.device(f"cuda:{local_rank}" if torch.cuda.is_available() else "cpu")
+                adapters_weights = torch.load(checkpoint_name, map_location=device)
+                set_peft_model_state_dict(model.model, adapters_weights)
+            else:
+                print(f"Checkpoint {checkpoint_name} not found")
+        else:
+            resume_from_checkpoint = None
+
+    if my_args.only_linear:
+        for param in model.model.parameters():
+            param.requires_grad = False
+        model.model.print_trainable_parameters()
 
     train_dataset = CustomDataset(
         ds,

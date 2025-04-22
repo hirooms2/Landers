@@ -81,6 +81,7 @@ def inference(args):
     print('document shape:',torch.from_numpy(d_rep).shape)
 
     rank = []
+    conf = []
 
     for i in tqdm(range(0, len(queries), args.batch_size)):
         batch_queries = queries[i: i + args.batch_size]
@@ -93,23 +94,30 @@ def inference(args):
             cos_sim = torch.where(torch.isnan(cos_sim), torch.full_like(cos_sim,0), cos_sim)
         else:
             cos_sim = model.item_proj(torch.from_numpy(q_rep))
+            cos_sim = torch.softmax(cos_sim/args.tau, dim=-1)
         # print("cos_sim shape:", cos_sim.shape)
         # print("cos_sim:", cos_sim)
 
         topk_sim_values, topk_sim_indices = torch.topk(cos_sim,k=50,dim=-1)
         rank_slice = topk_sim_indices.tolist()
         rank += rank_slice
+        conf_slice = topk_sim_values.tolist()
+        conf += conf_slice
         # print('length rank:',len(rank))
 
     print('length rank:',len(rank))
     recall_score(rec_lists, rank, ks=[1,3,5,10,20,50])
 
     if args.store_results:
-        for i in range(len(rank)):
+        for i in tqdm(range(len(rank))):
 
             ranked_list = {j:id2name[j] for j in rank[i]}
+            item_list = [id2name[j] for j in rank[i]][:10]
+            conf_list = conf[i][:10]
 
-            test_data[i]["cand_list"] = ranked_list
+            # test_data[i]["cand_list"] = ranked_list
+            test_data[i]["cand_list"] = item_list
+            test_data[i]['conf_list'] = conf_list
 
             with open(to_json, "w", encoding="utf-8") as fwr:
                 for example in test_data:
