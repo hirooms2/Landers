@@ -122,6 +122,7 @@ class CustomDataset(torch.utils.data.Dataset):
             passages.append(pos)
 
             if "neg" in self.ds_embedding[item]:
+                self.ds_embedding[item]['neg'] = self.ds_embedding[item]['neg'][:self.args.num_neg]
                 if len(self.ds_embedding[item]['neg']) < self.args.train_group_size - 1:
                     num = math.ceil((self.args.train_group_size - 1) / len(self.ds_embedding[item]['neg']))
                     negs = random.sample(self.ds_embedding[item]['neg'] * num, self.args.train_group_size - 1)

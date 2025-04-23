@@ -85,7 +85,10 @@ class DataArguments:
         metadata={"help": "If unified with different emb & gen dataset lens, ensure samples are unique in each epoch"}
     )
     prefixlm: bool = field(default=False, metadata={"help": "PrefixLM for generative"})
-
+    
+    num_neg: int = field(
+        default=20, metadata={"help": "the max number of hard negative items"}
+    )
 
     def __post_init__(self):
         if not os.path.exists(self.train_data):

@@ -92,6 +92,7 @@ def inference(args):
         if not args.linear:
             cos_sim = F.cosine_similarity(torch.from_numpy(q_rep).unsqueeze(1), torch.from_numpy(d_rep).unsqueeze(0),dim=-1)
             cos_sim = torch.where(torch.isnan(cos_sim), torch.full_like(cos_sim,0), cos_sim)
+            cos_sim = torch.softmax(cos_sim/0.02, dim=-1)
         else:
             cos_sim = model.item_proj(torch.from_numpy(q_rep))
             cos_sim = torch.softmax(cos_sim/args.tau, dim=-1)
