@@ -140,12 +140,16 @@ def main():
         
     db_path = os.path.join(my_args.home, 'crs_data', my_args.db_json)
     title2feature = json.load(open(db_path, 'r', encoding='utf-8'))
-    documents = list(title2feature.values())
-    documents = [doc[:512 * 10] for doc in documents]
+    # documents = list(title2feature.values())
+    # documents = [doc[:512 * 10] for doc in documents]
     if data_args.only_title:
         feature2idx = {k: idx for idx, (k, v) in enumerate(title2feature.items())}
+        documents = list(title2feature.keys())
+        documents = [doc[:512 * 10] for doc in documents]
     else:
         feature2idx = {v: idx for idx, (k, v) in enumerate(title2feature.items())}
+        documents = list(title2feature.values())
+        documents = [doc[:512 * 10] for doc in documents]
 
     # all_items = list(db.keys())
     # num_items = len(all_items)
