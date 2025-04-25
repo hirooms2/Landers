@@ -142,7 +142,10 @@ def main():
     title2feature = json.load(open(db_path, 'r', encoding='utf-8'))
     documents = list(title2feature.values())
     documents = [doc[:512 * 10] for doc in documents]
-    feature2idx = {v: idx for idx, (k, v) in enumerate(title2feature.items())}
+    if data_args.only_title:
+        feature2idx = {k: idx for idx, (k, v) in enumerate(title2feature.items())}
+    else:
+        feature2idx = {v: idx for idx, (k, v) in enumerate(title2feature.items())}
 
     # all_items = list(db.keys())
     # num_items = len(all_items)
@@ -439,7 +442,8 @@ def main():
             embed_eos=embed_eos,
             assistant_bos=ASSISTANT_BOS,
             assistant_eos=ASSISTANT_EOS,
-            prefixlm=data_args.prefixlm
+            prefixlm=data_args.prefixlm,
+            only_title=data_args.only_title
         ),
         "tokenizer": tokenizer,
         "callbacks": [QueryEvalCallback(training_args.output_dir)]

@@ -85,6 +85,7 @@ class DataArguments:
         metadata={"help": "If unified with different emb & gen dataset lens, ensure samples are unique in each epoch"}
     )
     prefixlm: bool = field(default=False, metadata={"help": "PrefixLM for generative"})
+    only_title: bool = field(default=False, metadata={"help": "use only title of db"})
     
     num_neg: int = field(
         default=20, metadata={"help": "the max number of hard negative items"}

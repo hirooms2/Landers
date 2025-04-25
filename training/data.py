@@ -176,6 +176,7 @@ class CustomCollator(DataCollatorWithPadding):
     assistant_eos: str = ""
 
     prefixlm: bool = False
+    only_title: bool = False
 
     def __call__(self, features):
         query = [f[0] for f in features]
