@@ -73,7 +73,7 @@ class QueryEvalCallback(TrainerCallback):
         wrapper_model = kwargs['model']  # 전체 wrapper 모델
         peft_model = wrapper_model.model  # PEFT 모델 내부
         epoch = state.epoch
-        path = os.path.join(self.saved_model_path, f'E{int(epoch)}')
+        path = os.path.join(self.saved_model_path, f'E{round(epoch)}')
 
         logger.info(f'Start saving epoch: {epoch}')
 
@@ -138,18 +138,18 @@ def main():
     else:
         resume_from_checkpoint = ''
         
-    db_path = os.path.join(my_args.home, 'crs_data', my_args.db_json)
-    title2feature = json.load(open(db_path, 'r', encoding='utf-8'))
-    # documents = list(title2feature.values())
-    # documents = [doc[:512 * 10] for doc in documents]
-    if data_args.only_title:
-        feature2idx = {k: idx for idx, (k, v) in enumerate(title2feature.items())}
-        documents = list(title2feature.keys())
-        documents = [doc[:512 * 10] for doc in documents]
-    else:
-        feature2idx = {v: idx for idx, (k, v) in enumerate(title2feature.items())}
-        documents = list(title2feature.values())
-        documents = [doc[:512 * 10] for doc in documents]
+    # db_path = os.path.join(my_args.home, 'crs_data', my_args.db_json)
+    # title2feature = json.load(open(db_path, 'r', encoding='utf-8'))
+    # # documents = list(title2feature.values())
+    # # documents = [doc[:512 * 10] for doc in documents]
+    # if data_args.only_title:
+    #     feature2idx = {k: idx for idx, (k, v) in enumerate(title2feature.items())}
+    #     documents = list(title2feature.keys())
+    #     documents = [doc[:512 * 10] for doc in documents]
+    # else:
+    #     feature2idx = {v: idx for idx, (k, v) in enumerate(title2feature.items())}
+    #     documents = list(title2feature.values())
+    #     documents = [doc[:512 * 10] for doc in documents]
 
     # all_items = list(db.keys())
     # num_items = len(all_items)
@@ -198,7 +198,7 @@ def main():
         gc_chunk_size = training_args.per_device_train_batch_size
         training_args.per_device_train_batch_size = \
             training_args.per_device_train_batch_size * training_args.gradient_accumulation_steps
-        training_args.gradient_accumulation_steps = 1
+        training_args.gradient_accumulation_steps = 4
 
         logger.info("Using GradCache with chunk size %d", gc_chunk_size)
     elif (training_args.no_gen_gas or training_args.no_emb_gas):
@@ -231,7 +231,7 @@ def main():
 
     if data_args.generative_max_len is None:
         data_args.generative_max_len = data_args.passage_max_len
-
+    
     for file in data_files:
         logger.info("Loading dataset %s", file)
         tmp_ds = datasets.load_dataset('json', data_files=file, split='train')
@@ -341,7 +341,7 @@ def main():
         # low_cpu_mem_usage=True,
         quantization_config=quantization_config,
         load_in_4bit=load_in_4bit,
-        num_items = len(feature2idx) if my_args.linear else 0
+        num_items = len(data_files) if my_args.linear else 0
     )
     # Add special token for embed
     if model_args.pooling_method == "lasttoken":
@@ -423,10 +423,10 @@ def main():
         args=data_args,
         tokenizer=tokenizer,
         mode=training_args.mode,
-        full_bs=training_args.per_device_train_batch_size,
+        full_bs=training_args.per_device_train_batch_size  ,
         generative_bs=training_args.per_device_generative_bs,
         max_seq_len=max(data_args.query_max_len, data_args.passage_max_len, data_args.generative_max_len),
-        item_db = feature2idx
+        item_db = None
     )
 
     trainer_kwargs = {

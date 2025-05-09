@@ -13,7 +13,7 @@ class Prompter():
 
 
     def generate_prompt(self, data):
-        if self.args.prompt == 'inspired2':
+        if 'inspired2' in self.args.prompt:
             dialog = data['context'][-self.max_char_len:]
             return self.template['template'].format(dialog=dialog)
         elif self.args.prompt == 'durecdial2':

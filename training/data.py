@@ -111,7 +111,20 @@ class CustomDataset(torch.utils.data.Dataset):
 
             passages = []
             pos = random.choice(self.ds_embedding[item]['pos'])
-            title = self.item_db[pos[1]]
+            pos_passage = pos[1]
+            
+            # if isinstance(next(iter(self.item_db.values())), list):
+            #     for idx, (key, value_list) in enumerate(self.item_db.items()):
+            #         if pos_passage in value_list:
+            #             title = idx
+            #             print(f"Found in key '{key}' at index {idx}")
+            #             break
+            # else:
+            #     title = self.item_db[pos_passage]   
+            # if title is None:
+            #     raise ValueError(f"title could not be determined for passage: {pos_passage}")
+            title = None
+                
 
             if isinstance(pos, str):
                 pos = pos[:self.max_char_len]
@@ -189,7 +202,8 @@ class CustomCollator(DataCollatorWithPadding):
             passage = sum(passage, [])
 
         features = {}
-        features['item_labels'] = torch.LongTensor(item_labels)
+        if isinstance(item_labels[0], int):
+            features['item_labels'] = torch.LongTensor(item_labels)
 
         # If each sample is a tuple it is of format (instruction, text)
         q_instruction_lens, g_instruction_lens = None, None

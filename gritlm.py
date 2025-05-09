@@ -98,8 +98,8 @@ class GritLM(torch.nn.Module):
     def encode(
         self,
         sentences: Union[List[str], str],
-        batch_size: int = 256,
-        max_length: int = 512,
+        batch_size: int = 5,
+        max_length: int = 1024,
         instruction: str = "",
         embed_instruction: bool = False,
         get_cache: bool = False,
@@ -117,7 +117,8 @@ class GritLM(torch.nn.Module):
             input_was_string = True
 
         all_embeddings, all_kv_caches = [], []
-        for start_index in tqdm(range(0, len(sentences), batch_size), desc="Batches", disable=len(sentences)<256):
+        for start_index in tqdm(range(0, len(sentences), batch_size), desc="Batches", disable=True):
+            
             sentences_batch = [
                 instruction + s + self.embed_eos for s in sentences[start_index:start_index + batch_size]
             ]
