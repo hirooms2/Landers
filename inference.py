@@ -108,6 +108,7 @@ def inference(args):
 
     rank = []
     conf = []
+    passages = []
 
     for i in tqdm(range(0, len(queries), args.batch_size)):
         batch_queries = queries[i: i + args.batch_size]
@@ -133,15 +134,22 @@ def inference(args):
             topk_sim_values, topk_sim_indices = torch.topk(cos_sim,k=30,dim=-1)
         
         rank_slice = topk_sim_indices.tolist()
+
         if 'passage' in db_path:
             for i in range(len(topk_sim_indices)):
+                temp_passages = []
                 for j, p in enumerate(rank_slice[i]):
+                    temp_passages.append(documents[p])
                     passage2idx = name2id[extract_title_with_year(documents[p])]
                     rank_slice[i][j] = passage2idx
-        rank += rank_slice
+                passages.append(temp_passages)
+    
+        
+        rank += rank_slice # extend
         conf_slice = topk_sim_values.tolist()
         conf += conf_slice
-        # print('length rank:',len(rank))
+        print('rank length:',  len(rank))
+        print('passages length:',len(passages))
 
     print('model path:', model_path)
     print('length rank:',len(rank))
@@ -153,10 +161,15 @@ def inference(args):
             ranked_list = {j:id2name[j] for j in rank[i]}
             item_list = [id2name[j] for j in rank[i]][:20]
             conf_list = conf[i][:20]
+            passage_list = passages[i]
+            
 
             # test_data[i]["cand_list"] = ranked_list
             test_data[i]["cand_list"] = item_list
             test_data[i]['conf_list'] = conf_list
+            
+            if 'passage' in db_path:
+                test_data[i]['selected_passage'] = passage_list
 
             with open(to_json, "w", encoding="utf-8") as fwr:
                 for example in test_data:
