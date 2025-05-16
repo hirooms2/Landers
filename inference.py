@@ -95,9 +95,9 @@ def inference(args):
         print("linear parameter X")
 
     passages_for_instruction = []
-    if args.instruction_arg:
-        for target_p in db.values():
-            temp = [passage for passage in db.values() if passage != target_p and extract_title_with_year(passage)==extract_title_with_year(batch_documents)]
+    if args.instruction_aug:
+        for target_p in tqdm(db.values()):
+            temp = [passage for passage in db.values() if passage != target_p and extract_title_with_year(passage)==extract_title_with_year(target_p)]
             instruction_passage = ''
             for p in temp:
                 p = p+' '
@@ -109,7 +109,7 @@ def inference(args):
     for i, sample in enumerate(tqdm(documents, desc="Encoding documents")):
         batch_documents = documents[i]
         if args.instruction_aug:
-            passages_for_instruction = [passage for passage in db.values() if passage != batch_documents and extract_title_with_year(passage)==extract_title_with_year(batch_documents)]
+            # passages_for_instruction = [passage for passage in db.values() if passage != batch_documents and extract_title_with_year(passage)==extract_title_with_year(batch_documents)]
             instruction_passage = passages_for_instruction[i]
             instruction = doc_instr+instruction_passage
         else:
