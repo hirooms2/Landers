@@ -94,21 +94,29 @@ def inference(args):
     else:
         print("linear parameter X")
 
+    passages_for_instruction = []
+    if args.instruction_arg:
+        for target_p in db.values():
+            temp = [passage for passage in db.values() if passage != target_p and extract_title_with_year(passage)==extract_title_with_year(batch_documents)]
+            instruction_passage = ''
+            for p in temp:
+                p = p+' '
+                instruction_passage += p
+            passages_for_instruction.append(instruction_passage)
+    
+    
     d_rep= []
     for i, sample in enumerate(tqdm(documents, desc="Encoding documents")):
         batch_documents = documents[i]
         if args.instruction_aug:
             passages_for_instruction = [passage for passage in db.values() if passage != batch_documents and extract_title_with_year(passage)==extract_title_with_year(batch_documents)]
-            
-            instruction_passage = ''
-            for p in passages_for_instruction:
-                p = p+' '
-                instruction_passage += p
+            instruction_passage = passages_for_instruction[i]
             instruction = doc_instr+instruction_passage
         else:
             instruction = doc_instr
         d_rep.append(model.encode(batch_documents, instruction=gritlm_instruction(instruction))) # self-attention 적용하려면 encode batch size 아이템에 대한 passage 개수로 설정해야함 
-    d_rep=np.concatenate(d_rep, axis=0)
+    
+    d_rep=np.stack(d_rep, axis=0)
     print('document shape:',torch.from_numpy(d_rep).shape)
 
     rank = []
