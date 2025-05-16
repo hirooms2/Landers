@@ -20,7 +20,7 @@ def parse_args():
     parser.add_argument("--store_results", action='store_true', help="store or not")
     parser.add_argument('--linear', type=bool, default=False)
     parser.add_argument('--tau', type=float, default=1.0)
-    parser.add_argument('--pooling', type=str, default=' ')
+    parser.add_argument('--instruction_aug', action='store_true')
 
     # /home/user/junpyo/gritlm/model_weights/test1/0413164554/E5
     args = parser.parse_args()

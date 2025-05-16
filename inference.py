@@ -83,7 +83,7 @@ def inference(args):
     # rec_lists = []
 
       # Loads the model for both capabilities; If you only need embedding pass `mode="embedding"` to save memory (no lm head)
-    model = GritLM("GritLM/GritLM-7B", mode='embedding', torch_dtype="auto", num_items=len(all_names) if args.linear else 0)
+    model = GritLM("GritLM/GritLM-7B", mode='embedding', torch_dtype="auto", num_items=len(all_names) if args.linear else 0, device="cpu")
     # model = GritLM("GritLM/GritLM-7B", torch_dtype="auto")
     model.model = PeftModel.from_pretrained(model.model, model_path)
 
@@ -95,11 +95,16 @@ def inference(args):
         print("linear parameter X")
 
     d_rep= []
-    for idx, i in enumerate(tqdm(range(0, len(documents), 5), desc="Encoding documents")):
-        batch_documents = documents[i: i + 5]
-        if args.pooling == 'max':
-            item_passages = full_passages[idx]
-            instruction = doc_instr+item_passages
+    for i, sample in enumerate(tqdm(documents, desc="Encoding documents")):
+        batch_documents = documents[i]
+        if args.instruction_aug:
+            passages_for_instruction = [passage for passage in db.values() if passage != batch_documents and extract_title_with_year(passage)==extract_title_with_year(batch_documents)]
+            
+            instruction_passage = ''
+            for p in passages_for_instruction:
+                p = p+' '
+                instruction_passage += p
+            instruction = doc_instr+instruction_passage
         else:
             instruction = doc_instr
         d_rep.append(model.encode(batch_documents, instruction=gritlm_instruction(instruction))) # self-attention 적용하려면 encode batch size 아이템에 대한 passage 개수로 설정해야함 
@@ -131,7 +136,7 @@ def inference(args):
             pooled_sim = cos_sim.max(dim=-1).values
             topk_sim_values, topk_sim_indices = torch.topk(pooled_sim, k=50, dim=-1)
         else:
-            topk_sim_values, topk_sim_indices = torch.topk(cos_sim,k=30,dim=-1)
+            topk_sim_values, topk_sim_indices = torch.topk(cos_sim,k=50,dim=-1)
         
         rank_slice = topk_sim_indices.tolist()
 
