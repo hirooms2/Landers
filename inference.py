@@ -83,7 +83,7 @@ def inference(args):
     # rec_lists = []
 
       # Loads the model for both capabilities; If you only need embedding pass `mode="embedding"` to save memory (no lm head)
-    model = GritLM("GritLM/GritLM-7B", mode='embedding', torch_dtype="auto", num_items=len(all_names) if args.linear else 0, device="cpu")
+    model = GritLM("GritLM/GritLM-7B", mode='embedding', torch_dtype="auto", num_items=len(all_names) if args.linear else 0)
     # model = GritLM("GritLM/GritLM-7B", torch_dtype="auto")
     model.model = PeftModel.from_pretrained(model.model, model_path)
 
