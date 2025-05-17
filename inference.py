@@ -103,7 +103,10 @@ def inference(args):
                 p = p+' '
                 instruction_passage += p
             passages_for_instruction.append(instruction_passage)
-    
+
+    # 마스크 생성 (N/A가 포함된 passage에 마스킹)
+    masks = torch.tensor([0 if "N/A" in doc else 1 for doc in documents])  # shape: len(documents)
+    print("mask shape: ", masks.shape)    
     
     d_rep= []
     for i, sample in enumerate(tqdm(documents, desc="Encoding documents")):
@@ -119,6 +122,12 @@ def inference(args):
     d_rep=np.stack(d_rep, axis=0)
     print('document shape:',torch.from_numpy(d_rep).shape)
 
+    
+    # 마스크 생성 (N/A가 포함된 passage에 마스킹)
+    masks = torch.tensor([0 if "N/A" in doc else 1 for doc in documents])  # shape: len(documents)
+    print("mask shape: ", masks.shape)
+     
+    
     rank = []
     conf = []
     passages = []
@@ -126,12 +135,17 @@ def inference(args):
     for i in tqdm(range(0, len(queries), args.batch_size)):
         batch_queries = queries[i: i + args.batch_size]
         q_rep = model.encode(batch_queries, instruction=gritlm_instruction(query_instr))
+        
+        q_rep_tensor = torch.from_numpy(q_rep)
+        d_rep_tensor = torch.from_numpy(d_rep)
+        mask_tensor = masks.unsqueeze(0).expand(len(q_rep), -1)
 
         # print('queries shape:', torch.from_numpy(q_rep).shape) 
 
         if not args.linear:
             cos_sim = F.cosine_similarity(torch.from_numpy(q_rep).unsqueeze(1), torch.from_numpy(d_rep).unsqueeze(0),dim=-1)
             cos_sim = torch.where(torch.isnan(cos_sim), torch.full_like(cos_sim,0), cos_sim)
+            cos_sim = cos_sim.masked_fill(mask_tensor==0, float('-inf')) # 마스킹 적용
             cos_sim = torch.softmax(cos_sim/0.02, dim=-1)
         else:
             cos_sim = model.item_proj(torch.from_numpy(q_rep))
@@ -140,14 +154,18 @@ def inference(args):
         # print("cos_sim:", cos_sim)
 
         if args.pooling == 'max':
-            cos_sim = cos_sim.view(-1, len(db.keys()), d_rep.shape[0]//len(db.keys()))
-            pooled_sim = cos_sim.max(dim=-1).values
+            cos_sim = cos_sim.view(len(q_rep), len(name2id), len(db.values())//len(name2id))
+            pooled_sim = cos_sim.max(dim=-1).values # (B, num_items)
             topk_sim_values, topk_sim_indices = torch.topk(pooled_sim, k=50, dim=-1)
+            topk_sim_indices = topk_sim_indices * 5
+        
+        elif args.pooling == 'mean':
+            pass
+        
         else:
             topk_sim_values, topk_sim_indices = torch.topk(cos_sim,k=50,dim=-1)
         
         rank_slice = topk_sim_indices.tolist()
-
         if 'passage' in db_path:
             for i in range(len(topk_sim_indices)):
                 temp_passages = []
