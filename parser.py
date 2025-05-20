@@ -13,7 +13,7 @@ def parse_args():
     parser.add_argument('--db_json', type=str, default='inspired2/inspired2_item_db_title.jsonl')
     parser.add_argument('--embeddings_path', type=str, default='inspired2/inspired2_item_embeddings2.pt')
     parser.add_argument('--base_model_path', type=str, default='"GritLM/GritLM-7B"')
-    parser.add_argument('--target_model_path', type=str, default=None)
+    parser.add_argument('--target_model_path', type=str, default='')
     parser.add_argument('--to_json', type=str, default='log_name')
     parser.add_argument('--query_max_len', type=int, default='128')
     parser.add_argument('--passage_max_len', type=int, default='1024')
