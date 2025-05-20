@@ -86,9 +86,8 @@ def inference(args):
     model = GritLM("GritLM/GritLM-7B", mode='embedding', torch_dtype="auto", num_items=len(all_names) if args.linear else 0)
     # model = GritLM("GritLM/GritLM-7B", torch_dtype="auto")
     
-    if args.target_model_path:
+    if args.target_model_path != '':
         model.model = PeftModel.from_pretrained(model.model, model_path)
-        
 
     if args.linear:
         non_lora_path = os.path.join(model_path, "non_lora_trainables.bin")
