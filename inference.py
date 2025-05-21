@@ -83,7 +83,7 @@ def inference(args):
     # rec_lists = []
 
     # Loads the model for both capabilities; If you only need embedding pass `mode="embedding"` to save memory (no lm head)
-    model = GritLM("GritLM/GritLM-7B", mode='embedding', torch_dtype="auto", num_items=len(all_names) if args.linear else 0)
+    model = GritLM("GritLM/GritLM-7B", mode='embedding', torch_dtype="auto", num_items=len(all_names) if args.linear else 0, device="cpu")
     # model = GritLM("GritLM/GritLM-7B", torch_dtype="auto")
     
     if args.target_model_path != '':
@@ -107,8 +107,9 @@ def inference(args):
             passages_for_instruction.append(instruction_passage)
 
     # 마스크 생성 (N/A가 포함된 passage에 마스킹)
-    masks = torch.tensor([0 if "N/A" in doc else 1 for doc in documents])  # shape: len(documents)
-    print("mask shape: ", masks.shape)    
+    # masks = torch.tensor([0 if "N/A" in doc else 1 for doc in documents])  # shape: len(documents)
+    # print("mask shape: ", masks.shape)    
+    # mask_tensor = masks.view(1, len(name2id), len(db.values())//len(name2id)).expand(16,1420,5) # (B, num_items, feature)
     
     d_rep= []
     for i, sample in enumerate(tqdm(documents, desc="Encoding documents")):
@@ -128,7 +129,7 @@ def inference(args):
     # 마스크 생성 (N/A가 포함된 passage에 마스킹)
     masks = torch.tensor([0 if "N/A" in doc else 1 for doc in documents])  # shape: len(documents)
     print("mask shape: ", masks.shape)
-     
+    
     
     rank = []
     conf = []
@@ -162,7 +163,16 @@ def inference(args):
             topk_sim_indices = topk_sim_indices * 5
         
         elif args.pooling == 'mean':
-            pass
+            cos_sim = cos_sim.view(len(q_rep), len(name2id), len(db.values())//len(name2id)) # (B, num_items, feature)
+            mask_tensor = masks.view(1, len(name2id), len(db.values())//len(name2id)).expand_as(cos_sim) # (B, num_items, feature)
+            
+            sum_sim = cos_sim.sum(dim=-1)
+            passage_count = mask_tensor.sum(dim=-1)
+            pooled_sim = sum_sim / passage_count
+            
+            topk_sim_values, topk_sim_indices = torch.topk(pooled_sim, k=50, dim=-1) # 아이템에 대한 점수 이기 때문에 다시 passage 인덱스로 바꿔줘서 DB 내에 있는 값과 매칭되도록 함
+            topk_sim_indices = topk_sim_indices * 5
+            
         
         else:
             topk_sim_values, topk_sim_indices = torch.topk(cos_sim,k=50,dim=-1)
