@@ -127,7 +127,7 @@ def inference(args):
     print("mask shape: ", masks.shape)
     
     
-    rank, rank2 = []
+    rank, rank2 = [], []
     conf = []
     passages = []
 
