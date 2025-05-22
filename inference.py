@@ -172,6 +172,9 @@ def inference(args):
                 #     rank += topk_mean_indices.tolist()
                 # elif args.pooling == 'both':
                 #     rank2 += topk_mean_indices.tolist()
+                
+            else:
+                topk_sim_values, topk_sim_indices = torch.topk(cos_sim,k=50,dim=-1)
         
         else:
             cos_sim = model.item_proj(torch.from_numpy(q_rep))
