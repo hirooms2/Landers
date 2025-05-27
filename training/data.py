@@ -114,7 +114,7 @@ class CustomDataset(torch.utils.data.Dataset):
             return text  # 연도가 없으면 원문 그대로 반환
         
         
-        query, passages, generative = None, None, None
+        query, passages, passages_mask, generative = None, None, None, None
         if self.mode in ["unified", "embedding"]:
             if self.indices_emb is not None:
                 if not self.indices_emb:
@@ -187,7 +187,8 @@ class CustomDataset(torch.utils.data.Dataset):
                 # print("positive/negative passages: ", temp_passages)
                 passages = temp_passages
                 print("passage 길이", len(passages)) # result: 10
-
+                passages_mask = [0 if 'N/A' in p else 1 for p in passages]
+                
             
         if (self.mode in ["unified", "generative"]) and (self.n_samples % self.take_nth == 0):
             if self.indices_gen is not None:
@@ -199,7 +200,7 @@ class CustomDataset(torch.utils.data.Dataset):
             generative = self.ds_generative[item]["text"]
 
         self.n_samples -= 1
-        return query, passages, generative, title
+        return query, passages, passages_mask, generative, title
 
 @dataclass
 class CustomCollator(DataCollatorWithPadding):
@@ -232,8 +233,9 @@ class CustomCollator(DataCollatorWithPadding):
     def __call__(self, features):
         query = [f[0] for f in features]
         passage = [f[1] for f in features]
-        generative = [f[2] for f in features]
-        item_labels = [f[3] for f in features]
+        passages_mask = [f[2] for f in features]
+        generative = [f[3] for f in features]
+        item_labels = [f[4] for f in features]
         
         # print(query)
         # print(passage)
@@ -347,6 +349,11 @@ class CustomCollator(DataCollatorWithPadding):
                         features["generative"]["labels"][i, cur_len:cur_len+l] = -100
                     cur_len += l
 
+        if passages_mask is not None:
+            print(passages_mask)
+            print(torch.tensor(passages_mask))
+            features["passages_mask"] = torch.tensor(passages_mask)
+        
         return features
 
 @dataclass
