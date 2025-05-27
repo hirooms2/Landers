@@ -4,6 +4,7 @@ import math
 import random
 import json
 import os
+import re
 from typing import Iterator, List, Tuple, Union
 
 import datasets
@@ -179,7 +180,7 @@ class CustomDataset(torch.utils.data.Dataset):
             if self.pooling in ['mean', 'attention']:
                 temp_passages = []
                 for item in passages:
-                    item_passage = [p for p in self.item_db if extract_title_with_year(p) == item]
+                    item_passage = [p for p in self.item_db if extract_title_with_year(p) == item[1]]
                     print("item passage 확인: ", item_passage)
                     temp_passages += item_passage
                 print("positive/negative passages: ", temp_passages)
