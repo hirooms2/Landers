@@ -126,6 +126,7 @@ class myArgument:
     linear: bool = field(default=False)
     linear_initialize: bool = field(default=False)
     only_linear: bool = field(default=False)
+    pooling: str = field(default='')
 
 def main():
     parser = HfArgumentParser((ModelArguments, DataArguments, CustomTrainingArguments, myArgument))
@@ -426,7 +427,8 @@ def main():
         full_bs=training_args.per_device_train_batch_size  ,
         generative_bs=training_args.per_device_generative_bs,
         max_seq_len=max(data_args.query_max_len, data_args.passage_max_len, data_args.generative_max_len),
-        item_db = None
+        pooling = my_args.pooling,
+        item_db = my_args.db_json
     )
 
     trainer_kwargs = {

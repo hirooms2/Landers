@@ -2,6 +2,8 @@ from dataclasses import dataclass
 import logging
 import math
 import random
+import json
+import os
 from typing import Iterator, List, Tuple, Union
 
 import datasets
@@ -23,6 +25,7 @@ class CustomDataset(torch.utils.data.Dataset):
         full_bs: int = None,
         generative_bs: int = None,
         max_seq_len: int = 2048,
+        pooling: str = '',
         item_db = None
     ):
         self.indices_emb, self.indices_gen = None, None
@@ -36,6 +39,8 @@ class CustomDataset(torch.utils.data.Dataset):
         elif mode == 'embedding': 
             self.ds_embedding = dataset
             self.total_len = self.len_embedding = len(self.ds_embedding)
+            self.pooling = pooling
+            
         elif mode == 'generative': 
             self.ds_generative = dataset
             self.total_len = self.len_generative = len(self.ds_generative)
@@ -44,6 +49,10 @@ class CustomDataset(torch.utils.data.Dataset):
         self.mode = mode
         self.item_db = item_db
 
+        print("passage DB loading: ", os.path(self.item_db))
+        if self.item_db and self.pooling in ['mean', 'attention']:
+            self.passage_db = json.load(open(os.path(self.item_db)))
+        print("passage db loading complete", len(self.passage_db))
         # Too long items will be stuck in communication so cut them on the fly
         self.max_char_len = max_seq_len * 10
 
