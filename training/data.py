@@ -353,6 +353,7 @@ class CustomCollator(DataCollatorWithPadding):
             print(passages_mask)
             print(torch.tensor(passages_mask))
             features["passages_mask"] = torch.tensor(passages_mask)
+            print('mask size: ', features["passages_mask"].size())
         
         return features
 
