@@ -342,7 +342,8 @@ def main():
         # low_cpu_mem_usage=True,
         quantization_config=quantization_config,
         load_in_4bit=load_in_4bit,
-        num_items = len(data_files) if my_args.linear else 0
+        num_items = len(data_files) if my_args.linear else 0,
+        pooling=my_args.pooling
     )
     # Add special token for embed
     if model_args.pooling_method == "lasttoken":

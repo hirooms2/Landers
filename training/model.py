@@ -118,6 +118,7 @@ class GritLMTrainModel(GritLM):
         loss_gen_type: str = "mixed",
         loss_gen_factor: float = None,
         num_items: int = 0,
+        pooling: str = '',
         **kwargs,
     ):
         super().__init__(**kwargs, is_inference=False)
@@ -136,6 +137,8 @@ class GritLMTrainModel(GritLM):
 
         self.num_items = num_items
         self.item_proj = nn.Linear(self.model.config.hidden_size, self.num_items)
+        
+        self.pooling_emb = pooling
 
     def encode(self, features):
         print('encode 시작!')
@@ -201,22 +204,29 @@ class GritLMTrainModel(GritLM):
         else:
             loss_gen = None
 
-        print('model.py Query: ', query)
+        
         if (q_reps is None) and (query is not None):
             if q_grad:
                 q_reps = self.encode(query)
             else:
                 with torch.no_grad():
                     q_reps = self.encode(query)
-        print("self.num_items:", self.num_items)
-        if self.num_items == 0:
+
+        if self.num_items == 0: # None linear 실행 분기 
             if (p_reps is None) and (passage is not None):
                 if p_grad:
                     p_reps = self.encode(passage)
                 else:
                     with torch.no_grad():
-                        p_reps = self.encode(passage)
-            # print(q_reps.size())    
+                        p_reps = self.encode(passage)    
+            
+            
+            print('##############################################################################')
+            print(q_reps.size())    
+            
+            if self.pooling_emb in ['mean', 'attention']:
+                pass
+            
             loss_emb = self.emb_loss_fn(
                 q_reps, p_reps
             ) if (q_reps is not None and p_reps is not None) else None
