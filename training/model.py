@@ -227,17 +227,21 @@ class GritLMTrainModel(GritLM):
             print(p_reps.size())  
             
             if self.pooling_emb in ['mean', 'attention']:
-                mask = passages_mask.view(q_reps.size()[0], 2, 5).float()
+                # B = q_reps.size(0)
+                # P = p_reps.size(0) // B # 하나의 쿼리에 포함된 passage 개수 (pos+neg)
+                
+                mask = passages_mask.view(q_reps.size(0), 2, 5).float()
                 print('mask size: ', mask.size())
-                p_reps = p_reps.view(q_reps.size()[0], 2, 5, -1)
+                print(mask)
+                p_reps = p_reps.view(q_reps.size(0), 2, 5, -1)
                 masked_p_reps = p_reps * mask.unsqueeze(-1)  # [B, 2, 5, 4096]
                 print('mask 적용 후: ', masked_p_reps.size())
                 
                 count_p = mask.sum(dim=2, keepdim=True)
                 p_reps_pooled = masked_p_reps.sum(dim=2) / count_p
                 print('최종!!!! ', p_reps_pooled.size())
-                
-                
+                p_reps = p_reps_pooled.reshape(-1, p_reps_pooled.size(-1))
+                print('p_reps size!!!! ', p_reps.size()) 
             
             loss_emb = self.emb_loss_fn(
                 q_reps, p_reps
