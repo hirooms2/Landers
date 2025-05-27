@@ -419,12 +419,14 @@ def main():
             param.requires_grad = False
         model.model.print_trainable_parameters()
 
+    
     db_path = os.path.join(my_args.home, 'crs_data', my_args.db_json)
     print("passage DB loading: ", db_path)
+    print(my_args.db_json, my_args.pooling)
     if my_args.db_json and my_args.pooling in ['mean', 'attention']:
         db = json.load(open(db_path, 'r', encoding='utf-8'))
         db_list = [data for data in db.values()]
-    print("passage db loading complete", len(db_list), type(db_list))
+        print("passage db loading complete", len(db_list), type(db_list))
     
     
     train_dataset = CustomDataset(

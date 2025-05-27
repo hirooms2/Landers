@@ -92,6 +92,7 @@ class CustomDataset(torch.utils.data.Dataset):
     def __len__(self):
         return self.total_len
 
+    
     def __getitem__(self, item) -> Tuple[BatchEncoding, List[BatchEncoding], BatchEncoding]:
         """
         Problems:
@@ -101,6 +102,16 @@ class CustomDataset(torch.utils.data.Dataset):
         Don't train for >1 epoch by duplicating the dataset you want to repeat in the folder.
         Upon loading, each dataset is shuffled so indices will be different.
         """
+        
+        def extract_title_with_year(text):
+            # 괄호 안에 4자리 숫자(연도) + ) + 공백 패턴을 가장 마지막에서 찾기
+            matches = list(re.finditer(r'\(\d{4}\)\s', text))
+            if matches:
+                end = matches[-1].end()  # 마지막 연도 ') ' 이후 인덱스
+                return text[:end-1]  # 공백 제외, 닫는 괄호는 유지
+            return text  # 연도가 없으면 원문 그대로 반환
+        
+        
         query, passages, generative = None, None, None
         if self.mode in ["unified", "embedding"]:
             if self.indices_emb is not None:
@@ -123,6 +134,7 @@ class CustomDataset(torch.utils.data.Dataset):
 
             passages = []
             pos = random.choice(self.ds_embedding[item]['pos'])
+            print("positive item: ", pos[1])
             pos_passage = pos[1]
             
             # if isinstance(next(iter(self.item_db.values())), list):
@@ -162,6 +174,17 @@ class CustomDataset(torch.utils.data.Dataset):
                     else:
                         raise ValueError(f"Unexpected type for neg: {type(neg)}")
                 passages.extend(negs)
+            
+            print("positive/negative items: ", passages)
+            if self.pooling in ['mean', 'attention']:
+                temp_passages = []
+                for item in passages:
+                    item_passage = [p for p in self.item_db if extract_title_with_year(p) == item]
+                    print("item passage 확인: ", item_passage)
+                    temp_passages += item_passage
+                print("positive/negative passages: ", temp_passages)
+                passages = temp_passages
+                print(passages)
 
         if (self.mode in ["unified", "generative"]) and (self.n_samples % self.take_nth == 0):
             if self.indices_gen is not None:
