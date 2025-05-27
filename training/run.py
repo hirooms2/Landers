@@ -439,7 +439,7 @@ def main():
         generative_bs=training_args.per_device_generative_bs,
         max_seq_len=max(data_args.query_max_len, data_args.passage_max_len, data_args.generative_max_len),
         pooling = my_args.pooling,
-        item_db = db_list
+        item_db = db_list if db_list else None
     )
 
     trainer_kwargs = {
