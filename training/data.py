@@ -135,7 +135,7 @@ class CustomDataset(torch.utils.data.Dataset):
 
             passages = []
             pos = random.choice(self.ds_embedding[item]['pos'])
-            print("positive item: ", pos[1])
+            # print("positive item: ", pos[1])
             pos_passage = pos[1]
             
             # if isinstance(next(iter(self.item_db.values())), list):
@@ -233,6 +233,10 @@ class CustomCollator(DataCollatorWithPadding):
         passage = [f[1] for f in features]
         generative = [f[2] for f in features]
         item_labels = [f[3] for f in features]
+        
+        print(query)
+        print(passage)
+        print(item_labels)
 
         # Flatten if list of lists
         if isinstance(passage[0], list):
