@@ -138,6 +138,7 @@ class GritLMTrainModel(GritLM):
         self.item_proj = nn.Linear(self.model.config.hidden_size, self.num_items)
 
     def encode(self, features):
+        print('encode 시작!')
         if features is None: return None
         # Clone to avoid modifying the original tensor
         attention_mask = features['attention_mask'].clone() if 'attention_mask' in features else None

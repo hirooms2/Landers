@@ -181,12 +181,13 @@ class CustomDataset(torch.utils.data.Dataset):
                 temp_passages = []
                 for item in passages:
                     item_passage = [p for p in self.item_db if extract_title_with_year(p) == item[1]]
-                    print("item passage 확인: ", item_passage)
+                    # print("item passage 확인: ", item_passage)
                     temp_passages += item_passage
-                print("positive/negative passages: ", temp_passages)
+                # print("positive/negative passages: ", temp_passages)
                 passages = temp_passages
-                print(passages)
+                print("passage 길이", len(passages)) # result: 10
 
+        
         if (self.mode in ["unified", "generative"]) and (self.n_samples % self.take_nth == 0):
             if self.indices_gen is not None:
                 if not self.indices_gen:
