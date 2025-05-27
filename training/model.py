@@ -229,7 +229,7 @@ class GritLMTrainModel(GritLM):
             if self.pooling_emb in ['mean', 'attention']:
                 # B = q_reps.size(0)
                 # P = p_reps.size(0) // B # 하나의 쿼리에 포함된 passage 개수 (pos+neg)
-                
+                print('original mask: ', passages_mask)
                 mask = passages_mask.view(q_reps.size(0), 2, 5).float()
                 print('mask size: ', mask.size())
                 print(mask)
