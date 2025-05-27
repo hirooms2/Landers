@@ -139,6 +139,7 @@ class GritLMTrainModel(GritLM):
 
     def encode(self, features):
         print('encode 시작!')
+        
         if features is None: return None
         # Clone to avoid modifying the original tensor
         attention_mask = features['attention_mask'].clone() if 'attention_mask' in features else None
@@ -190,14 +191,17 @@ class GritLMTrainModel(GritLM):
         """
         # Do generative first, as emb contains an all-reduce (verified to be faster)
         if generative is not None:
+            print('1번번')
             if self.gen_loss_fn is not None:
                 # This pops the labels first, then the rest is passed into model                
                 loss_gen = self.gen_loss_fn(
                     generative.pop('labels'), self.model(**generative, **self.gen_add_kwargs).logits
                 )
             else:
+                print('2번)')
                 loss_gen = self.model(**generative, **self.gen_add_kwargs).loss
         else:
+            print('3번번')
             loss_gen = None
 
         if (q_reps is None) and (query is not None):
