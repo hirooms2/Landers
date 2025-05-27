@@ -176,7 +176,7 @@ class CustomDataset(torch.utils.data.Dataset):
                         raise ValueError(f"Unexpected type for neg: {type(neg)}")
                 passages.extend(negs)
             
-            print("positive/negative items: ", passages)
+            print("positive/negative items: ", passages, len(passages))
             if self.pooling in ['mean', 'attention']:
                 temp_passages = []
                 for item in passages:
@@ -187,7 +187,7 @@ class CustomDataset(torch.utils.data.Dataset):
                 passages = temp_passages
                 print("passage 길이", len(passages)) # result: 10
 
-        
+            
         if (self.mode in ["unified", "generative"]) and (self.n_samples % self.take_nth == 0):
             if self.indices_gen is not None:
                 if not self.indices_gen:
