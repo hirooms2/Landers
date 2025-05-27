@@ -222,7 +222,8 @@ class GritLMTrainModel(GritLM):
             
             
             print('##############################################################################')
-            print(q_reps.size())    
+            print(q_reps.size())  
+            print(p_reps.size())  
             
             if self.pooling_emb in ['mean', 'attention']:
                 pass
