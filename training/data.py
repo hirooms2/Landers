@@ -234,9 +234,9 @@ class CustomCollator(DataCollatorWithPadding):
         generative = [f[2] for f in features]
         item_labels = [f[3] for f in features]
         
-        print(query)
-        print(passage)
-        print(item_labels)
+        # print(query)
+        # print(passage)
+        # print(item_labels)
 
         # Flatten if list of lists
         if isinstance(passage[0], list):

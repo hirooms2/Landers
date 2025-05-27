@@ -201,6 +201,7 @@ class GritLMTrainModel(GritLM):
         else:
             loss_gen = None
 
+        print('model.py Query: ', query)
         if (q_reps is None) and (query is not None):
             if q_grad:
                 q_reps = self.encode(query)
