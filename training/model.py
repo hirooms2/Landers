@@ -43,11 +43,13 @@ class DistributedContrastiveLoss:
         scores = self.compute_similarity(q_reps, p_reps) / self.temperature
         scores = scores.view(q_reps.size(0), -1)
         
-        if len(p_reps.size()) == 2:
-            target = torch.arange(scores.size(0), device=scores.device, dtype=torch.long)
-            target *= (p_reps.size(0) // q_reps.size(0))
-        else:
-            target = torch.zeros(scores.size(0), device=scores.device, dtype=torch.long)
+        target = torch.arange(scores.size(0), device=scores.device, dtype=torch.long)
+        target *= (p_reps.size(0) // q_reps.size(0))
+        # if len(p_reps.size()) == 2:
+        #     target = torch.arange(scores.size(0), device=scores.device, dtype=torch.long)
+        #     target *= (p_reps.size(0) // q_reps.size(0))
+        # else:
+        #     target = torch.zeros(scores.size(0), device=scores.device, dtype=torch.long)
         return self.cross_entropy(scores, target)
 
     def _dist_gather_tensor(self, t: Optional[torch.Tensor]):
@@ -235,22 +237,25 @@ class GritLMTrainModel(GritLM):
                 # B = q_reps.size(0)
                 # P = p_reps.size(0) // B # 하나의 쿼리에 포함된 passage 개수 (pos+neg)
                 # print('original mask: ', passages_mask)
-                p_reps = p_reps * passages_mask.view(-1, 1)  # [B * 2 * 5, 4096]
-                p_reps = p_reps.view(batch_size, -1, hidden_size)  # [B, 10, 4096]
-                num_features = p_reps.size(1) // 2
+                p_reps = p_reps * passages_mask.view(-1, 1)  # [B * 5, 4096]
+                p_reps = p_reps.view(batch_size, -1, hidden_size)  # [B, 5, 4096]
+                # num_features = p_reps.size(1) // 2
 
-                pos_reps = p_reps[:, :num_features, :]  # [B, 5, 4096]
-                neg_reps = p_reps[:, num_features:, :]  # [B, 5, 4096]
-                pos_mask = passages_mask[:, :num_features]  # [B, 5]
-                neg_mask = passages_mask[:, num_features:]  # [B, 5]
+                pos_reps = p_reps
+                pos_mask = passages_mask  # [B, 5]
+
+                # pos_reps = p_reps[:, :num_features, :]  # [B, 5, 4096]
+                # neg_reps = p_reps[:, num_features:, :]  # [B, 5, 4096]
+                # pos_mask = passages_mask[:, :num_features]  # [B, 5]
+                # neg_mask = passages_mask[:, num_features:]  # [B, 5]
 
                 pos_num = torch.sum(pos_mask, dim=-1, keepdim=True)  # [B, 1]
-                neg_num = torch.sum(neg_mask, dim=-1, keepdim=True)  # [B, 1]
+                # neg_num = torch.sum(neg_mask, dim=-1, keepdim=True)  # [B, 1]
 
                 # Mean (opt1)
                 if self.pooling_emb == 'mean':
                     pos_reps = torch.sum(pos_reps, dim=1) / pos_num  # [B, 4096]
-                    neg_reps = torch.sum(neg_reps, dim=1) / neg_num  # [B, 4096]
+                    # neg_reps = torch.sum(neg_reps, dim=1) / neg_num  # [B, 4096]
 
                 # # Attention (opt2)
                 elif self.pooling_emb == 'attention':
@@ -274,8 +279,8 @@ class GritLMTrainModel(GritLM):
                     neg_reps = torch.matmul(neg_attention, neg_reps) * neg_query_mask  # [B, 5, d]
 
                 # Concat
-                p_reps = torch.cat([pos_reps.unsqueeze(1), neg_reps.unsqueeze(1)], dim=1)  # [B, 2, 4096]
-                # p_reps = p_reps.view(-1, hidden_size)  # [B * 2, 4096]
+                p_reps = pos_reps  # [B, 4096]
+                # p_reps = torch.cat([pos_reps.unsqueeze(1), neg_reps.unsqueeze(1)], dim=1)  # [B, 2, 4096]
       
             loss_emb = self.emb_loss_fn(
                 q_reps, p_reps
