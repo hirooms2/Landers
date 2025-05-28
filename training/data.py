@@ -51,17 +51,19 @@ class CustomDataset(torch.utils.data.Dataset):
         self.mode = mode
         self.item_db = item_db
 
-        self.name2passages = defaultdict(list)
-        for doc in item_db:
-            name = self.extract_title_with_year(doc)
-            self.name2passages[name].append(doc)
+        if item_db: 
+            logger.info("Passage DB length: %s", len(self.item_db))
+            self.name2passages = defaultdict(list)
+            for doc in item_db:
+                name = self.extract_title_with_year(doc)
+                self.name2passages[name].append(doc)
         
         # print("passage DB loading: ", os.path(self.item_db))
         # if self.item_db and self.pooling in ['mean', 'attention']:
         #     self.passage_db = json.load(open(os.path(self.item_db)))
-        if self.item_db is not None:
-            print("DB len in CustomDataset", len(self.item_db))
-            print("DB 호출 잘 됨")
+        # if self.item_db is not None:
+        #     print("DB len in CustomDataset", len(self.item_db))
+        #     print("DB 호출 잘 됨")
         
         # Too long items will be stuck in communication so cut them on the fly
         self.max_char_len = max_seq_len * 10
