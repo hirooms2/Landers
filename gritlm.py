@@ -100,7 +100,7 @@ class GritLM(torch.nn.Module):
         sentences: Union[List[str], str],
         batch_size: int = 5,
         max_length: int = 1024,
-        instruction: str = "",
+        instruction: Union[List[str], str] = "",
         embed_instruction: bool = False,
         get_cache: bool = False,
         convert_to_tensor: bool = False,
@@ -118,6 +118,13 @@ class GritLM(torch.nn.Module):
 
         all_embeddings, all_kv_caches = [], []
         for start_index in tqdm(range(0, len(sentences), batch_size), desc="Batches", disable=True):
+            
+            # if isinstance(instruction, list):
+            #     batch_instructions = instruction[start_index:start_index+batch_size]
+            #     sentences_batch = [
+            #         inst + s + self.embed_eos
+            #     ]
+            
             
             sentences_batch = [
                 instruction + s + self.embed_eos for s in sentences[start_index:start_index + batch_size]

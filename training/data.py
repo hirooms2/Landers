@@ -184,8 +184,9 @@ class CustomDataset(torch.utils.data.Dataset):
                         raise ValueError(f"Unexpected type for neg: {type(neg)}")
                 passages.extend(negs)
             
-            print("positive/negative items: ", passages, len(passages))
-            if self.pooling in ['mean', 'attention']: # todo: passage 잘못 넘김
+            # print("positive/negative items: ", passages, len(passages))
+            
+            if self.pooling in ['mean', 'attention']: 
                 temp_passages = []
                 for item in passages:
                     item_passage = [p for p in self.name2passages[item[1]]]
@@ -193,7 +194,7 @@ class CustomDataset(torch.utils.data.Dataset):
                     temp_passages += [[item[0], p] for p in item_passage]
                 # print("positive/negative passages: ", temp_passages)
                 passages = temp_passages
-                print("passage 길이", len(passages)) # result: 10
+                # print("passage 길이", len(passages)) # result: 10
                 passages_mask = [0 if 'N/A' in p[1] else 1 for p in passages]
                 
             
@@ -356,7 +357,7 @@ class CustomCollator(DataCollatorWithPadding):
                         features["generative"]["labels"][i, cur_len:cur_len+l] = -100
                     cur_len += l
 
-        if passages_mask[0] is not None: # todo: pos_passage, neg_passage
+        if passages_mask[0] is not None: # pos_passage, neg_passage
             print(passages_mask)
             print(torch.tensor(passages_mask))
             features["passages_mask"] = torch.tensor(passages_mask)
