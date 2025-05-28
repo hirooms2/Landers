@@ -245,26 +245,28 @@ class GritLMTrainModel(GritLM):
                 neg_num = torch.sum(neg_mask, dim=-1, keepdim=True)  # [B, 1]
 
                 # Mean (opt1)
-                pos_reps = torch.sum(pos_reps, dim=1) / pos_num  # [B, 4096]
-                neg_reps = torch.sum(neg_reps, dim=1) / neg_num  # [B, 4096]
+                if self.pooling_emb == 'mean':
+                    pos_reps = torch.sum(pos_reps, dim=1) / pos_num  # [B, 4096]
+                    neg_reps = torch.sum(neg_reps, dim=1) / neg_num  # [B, 4096]
 
                 # # Attention (opt2)
-                # pos_key_mask = pos_mask.unsqueeze(1)   # [B, 1, 5] 
-                # pos_query_mask = pos_mask.unsqueeze(2) # [B, 5, 1] 
+                elif self.pooling_emb == 'attention':
+                    pos_key_mask = pos_mask.unsqueeze(1)   # [B, 1, 5] 
+                    pos_query_mask = pos_mask.unsqueeze(2) # [B, 5, 1] 
                
-                # pos_attention = torch.matmul(pos_reps, pos_reps.transpose(-2, -1))  # [B, 5, 5]
-                # pos_attention = pos_attention.masked_fill(~pos_key_mask, float('-inf'))
-                # pos_attention = torch.softmax(pos_attention, dim=-1)
-                # pos_reps = torch.matmul(pos_attention, pos_reps) * pos_query_mask  # [B, 5, d]
+                    pos_attention = torch.matmul(pos_reps, pos_reps.transpose(-2, -1))  # [B, 5, 5]
+                    pos_attention = pos_attention.masked_fill(~pos_key_mask, float('-inf'))
+                    pos_attention = torch.softmax(pos_attention, dim=-1)
+                    pos_reps = torch.matmul(pos_attention, pos_reps) * pos_query_mask  # [B, 5, d]
 
-                # neg_key_mask = neg_mask.unsqueeze(1)   # [B, 1, 5]
-                # neg_query_mask = neg_mask.unsqueeze(2) # [B, 5, 1] 
-                
-                # neg_attention = torch.matmul(neg_reps, neg_reps.transpose(-2, -1))  # [B, 5, 5]
-                # neg_attention = neg_attention.masked_fill(~neg_key_mask, float('-inf'))
-                # neg_attention = torch.softmax(neg_attention, dim=-1)
+                    neg_key_mask = neg_mask.unsqueeze(1)   # [B, 1, 5]
+                    neg_query_mask = neg_mask.unsqueeze(2) # [B, 5, 1] 
+                    
+                    neg_attention = torch.matmul(neg_reps, neg_reps.transpose(-2, -1))  # [B, 5, 5]
+                    neg_attention = neg_attention.masked_fill(~neg_key_mask, float('-inf'))
+                    neg_attention = torch.softmax(neg_attention, dim=-1)
 
-                # neg_reps = torch.matmul(neg_attention, neg_reps) * neg_query_mask  # [B, 5, d]
+                    neg_reps = torch.matmul(neg_attention, neg_reps) * neg_query_mask  # [B, 5, d]
 
                 # Concat
                 p_reps = torch.cat([pos_reps.unsqueeze(1), neg_reps.unsqueeze(1)], dim=1)  # [B, 2, 4096]
