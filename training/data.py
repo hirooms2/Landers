@@ -358,10 +358,10 @@ class CustomCollator(DataCollatorWithPadding):
                     cur_len += l
 
         if passages_mask[0] is not None: # pos_passage, neg_passage
-            print(passages_mask)
-            print(torch.tensor(passages_mask))
+            # print(passages_mask)
+            # print(torch.tensor(passages_mask))
             features["passages_mask"] = torch.tensor(passages_mask)
-            print('mask size: ', features["passages_mask"].size())
+            # print('mask size: ', features["passages_mask"].size())
         
         return features
 
