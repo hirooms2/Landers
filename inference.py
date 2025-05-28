@@ -95,12 +95,18 @@ def inference(args):
     else:
         print("linear parameter X")
 
+    name2passages = defaultdict(list)
+    for doc in documents:
+        name = extract_title_with_year(doc)
+        if 'N/A' not in doc:
+            name2passages[name].append(doc)
+
     passages_for_instruction = []
     if args.instruction_aug:
         for target_p in tqdm(db.values()):
-            temp = [passage for passage in db.values() if passage != target_p 
-                    and extract_title_with_year(passage)==extract_title_with_year(target_p)
-                    and 'N/A' not in passage]
+            name = extract_title_with_year(target_p)
+            related_passages = name2passages[name]
+            temp = [passage for passage in related_passages if passage != target_p]
             instruction_passage = ''
             for p in temp:
                 p = p+' '
@@ -137,15 +143,15 @@ def inference(args):
         
         q_rep_tensor = torch.from_numpy(q_rep)
         d_rep_tensor = torch.from_numpy(d_rep)
-        mask_tensor = masks.unsqueeze(0).expand(len(q_rep), -1)
+        mask_tensor = masks.view(len(name2id),-1).unsqueeze(0) # [1, num_items, features]
 
         # print('queries shape:', torch.from_numpy(q_rep).shape) 
 
         if not args.linear:
             cos_sim = F.cosine_similarity(torch.from_numpy(q_rep).unsqueeze(1), torch.from_numpy(d_rep).unsqueeze(0),dim=-1)
             cos_sim = torch.where(torch.isnan(cos_sim), torch.full_like(cos_sim,0), cos_sim)
-            cos_sim = cos_sim.masked_fill(mask_tensor==0, float('-inf')) # 마스킹 적용
-            cos_sim = torch.softmax(cos_sim/0.02, dim=-1)
+            # cos_sim = cos_sim.masked_fill(mask_tensor==0, float('-inf')) # 마스킹 적용
+            # cos_sim = torch.softmax(cos_sim/0.02, dim=-1)
             
             if args.pooling in ['max', 'both']:
                 max_sim = cos_sim.view(len(q_rep), len(name2id), len(db.values())//len(name2id))
@@ -156,10 +162,11 @@ def inference(args):
                 # rank += topk_max_indices.tolist()
                 
             if args.pooling in ['mean', 'both']:
-                cos_sim = cos_sim.view(len(q_rep), len(name2id), len(db.values())//len(name2id)) # (B, num_items, feature)
-                mask_tensor = masks.view(1, len(name2id), len(db.values())//len(name2id)).expand_as(cos_sim) # (B, num_items, feature)
-                sum_sim = cos_sim.sum(dim=-1)
-                passage_count = mask_tensor.sum(dim=-1)
+                cos_sim = cos_sim.view(len(q_rep), len(name2id), len(db.values())//len(name2id)) # (B, num_items, features)
+                cos_sim = cos_sim * mask_tensor # (B, num_items, features)
+                # mask_tensor = masks.view(1, len(name2id), len(db.values())//len(name2id)).expand_as(cos_sim) # (B, num_items, features)
+                sum_sim = cos_sim.sum(dim=-1) # [B, num_items]
+                passage_count = mask_tensor.sum(dim=-1) # [1, num_items]
                 mean_pooled_sim = sum_sim / passage_count
                 topk_sim_values, topk_mean_indices = torch.topk(mean_pooled_sim, k=50, dim=-1) # 아이템에 대한 점수 이기 때문에 다시 passage 인덱스로 바꿔줘서 DB 내에 있는 값과 매칭되도록 함
                 

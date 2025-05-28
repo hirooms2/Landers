@@ -227,22 +227,49 @@ class GritLMTrainModel(GritLM):
             print(p_reps.size())  
             
             if self.pooling_emb in ['mean', 'attention']:
+                batch_size = q_reps.size(0)
+                hidden_size = q_reps.size(-1)
                 # B = q_reps.size(0)
                 # P = p_reps.size(0) // B # 하나의 쿼리에 포함된 passage 개수 (pos+neg)
-                print('original mask: ', passages_mask)
-                mask = passages_mask.view(q_reps.size(0), 2, 5).float()
-                print('mask size: ', mask.size())
-                print(mask)
-                p_reps = p_reps.view(q_reps.size(0), 2, 5, -1)
-                masked_p_reps = p_reps * mask.unsqueeze(-1)  # [B, 2, 5, 4096]
-                print('mask 적용 후: ', masked_p_reps.size())
+                # print('original mask: ', passages_mask)
+                p_reps = p_reps * passages_mask.view(-1, 1)  # [B * 2 * 5, 4096]
+                p_reps = p_reps.view(batch_size, -1, hidden_size)  # [B, 10, 4096]
+                num_features = p_reps.size(1) // 2
+
+                pos_reps = p_reps[:, :num_features, :]  # [B, 5, 4096]
+                neg_reps = p_reps[:, num_features:, :]  # [B, 5, 4096]
+                pos_mask = passages_mask[:, :num_features]  # [B, 5]
+                neg_mask = passages_mask[:, num_features:]  # [B, 5]
+
+                pos_num = torch.sum(pos_mask, dim=-1, keepdim=True)  # [B, 1]
+                neg_num = torch.sum(neg_mask, dim=-1, keepdim=True)  # [B, 1]
+
+                # Mean (opt1)
+                pos_reps = torch.sum(pos_reps, dim=1) / pos_num  # [B, 4096]
+                neg_reps = torch.sum(neg_reps, dim=1) / neg_num  # [B, 4096]
+
+                # # Attention (opt2)
+                # pos_key_mask = pos_mask.unsqueeze(1)   # [B, 1, 5] 
+                # pos_query_mask = pos_mask.unsqueeze(2) # [B, 5, 1] 
+               
+                # pos_attention = torch.matmul(pos_reps, pos_reps.transpose(-2, -1))  # [B, 5, 5]
+                # pos_attention = pos_attention.masked_fill(~pos_key_mask, float('-inf'))
+                # pos_attention = torch.softmax(pos_attention, dim=-1)
+                # pos_reps = torch.matmul(pos_attention, pos_reps) * pos_query_mask  # [B, 5, d]
+
+                # neg_key_mask = neg_mask.unsqueeze(1)   # [B, 1, 5]
+                # neg_query_mask = neg_mask.unsqueeze(2) # [B, 5, 1] 
                 
-                count_p = mask.sum(dim=2, keepdim=True)
-                p_reps_pooled = masked_p_reps.sum(dim=2) / count_p
-                print('최종!!!! ', p_reps_pooled.size())
-                p_reps = p_reps_pooled.reshape(-1, p_reps_pooled.size(-1))
-                print('p_reps size!!!! ', p_reps.size()) 
-            
+                # neg_attention = torch.matmul(neg_reps, neg_reps.transpose(-2, -1))  # [B, 5, 5]
+                # neg_attention = neg_attention.masked_fill(~neg_key_mask, float('-inf'))
+                # neg_attention = torch.softmax(neg_attention, dim=-1)
+
+                # neg_reps = torch.matmul(neg_attention, neg_reps) * neg_query_mask  # [B, 5, d]
+
+                # Concat
+                p_reps = torch.cat([pos_reps.unsqueeze(1), neg_reps.unsqueeze(1)], dim=1)  # [B, 2, 4096]
+                p_reps = p_reps.view(-1, hidden_size)  # [B * 2, 4096]
+      
             loss_emb = self.emb_loss_fn(
                 q_reps, p_reps
             ) if (q_reps is not None and p_reps is not None) else None
