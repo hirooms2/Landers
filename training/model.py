@@ -265,7 +265,7 @@ class GritLMTrainModel(GritLM):
                     # pos_query = self.linear_query(pos_reps)
                 
                     pos_attention = torch.matmul(pos_reps, pos_reps.transpose(-2, -1))  # [B, 5, 5]
-                    pos_attention = pos_attention.masked_fill(~pos_key_mask, float('-inf'))
+                    pos_attention = pos_attention.masked_fill(~pos_key_mask.bool(), float('-inf'))
                     pos_attention = torch.softmax(pos_attention, dim=-1)
                     pos_reps = torch.matmul(pos_attention, pos_reps) * pos_query_mask  # [B, 5, d]
 
