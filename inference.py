@@ -63,10 +63,19 @@ def inference(args):
 
     db = json.load(open(db_path, 'r', encoding='utf-8'))
     if isinstance(next(iter(db.values())), list): # passage인 경우에 list 형태로 되어있음
-        documents = [passage for passages in db.values() for passage in passages]
+        documents = []
+        for passage_list in db.values():
+            documents.extend(passage_list)
+        all_names = list(db.keys())
+        # documents = [passage for passages in db.values() for passage in passages]
     else:
         documents = list(db.values())
+        all_names = [extract_title_with_year(v) for v in db.values()]
     documents = [doc[:prompter.max_char_len * 10] for doc in documents]
+    
+    if args.debug_mode:
+        documents = documents[:12]
+        all_names = all_names[:2]
     print(len(documents))
     
     # if isinstance(next(iter(db.values())), list):
@@ -74,55 +83,51 @@ def inference(args):
     #     for key in db.keys():
     #         full_passages = [", ".join(db[key]) for key in db.keys()]
     
-    all_names = [extract_title_with_year(v) for v in db.values()]
+    # all_names = [extract_title_with_year(v) for v in db.values()]
     name2id = {all_names[index]: index for index in range(len(all_names))}
     print("name2id:",len(name2id))
     id2name = {v:k for k,v in name2id.items()}
 
-    rec_lists = [[name2id[i]] for i in labels]
+    # rec_lists = [[name2id[i]] for i in labels]
 
     # Loads the model for both capabilities; If you only need embedding pass `mode="embedding"` to save memory (no lm head)
-    model = GritLM("GritLM/GritLM-7B", mode='embedding', torch_dtype="auto", num_items=len(all_names) if args.linear else 0)
+    model = GritLM("GritLM/GritLM-7B", mode='embedding', torch_dtype="auto", num_items=len(all_names) if args.linear else 0, device="cpu")
     # model = GritLM("GritLM/GritLM-7B", torch_dtype="auto")
     
     if args.target_model_path != '':
         model.model = PeftModel.from_pretrained(model.model, model_path)
 
-    if args.linear:
-        non_lora_path = os.path.join(model_path, "non_lora_trainables.bin")
-        non_lora_state_dict = torch.load(non_lora_path)
-        model.load_state_dict(non_lora_state_dict, strict=False)    
-    else:
-        print("linear parameter X")
+    # if args.linear:
+    #     non_lora_path = os.path.join(model_path, "non_lora_trainables.bin")
+    #     non_lora_state_dict = torch.load(non_lora_path)
+    #     model.load_state_dict(non_lora_state_dict, strict=False)    
+    # else:
+    #     print("linear parameter X")
 
-    name2passages = defaultdict(list)
-    for doc in documents:
-        name = extract_title_with_year(doc)
-        if 'N/A' not in doc:
-            name2passages[name].append(doc)
+    # "item": [passage list] 형태로 바꿔줌 
+    # name2passages = defaultdict(list)
+    # for doc in documents:
+    #     name = extract_title_with_year(doc)
+    #     if 'N/A' not in doc:
+    #         name2passages[name].append(doc)
 
-    passages_for_instruction = []
-    if args.instruction_aug:
-        for target_p in tqdm(db.values()):
-            name = extract_title_with_year(target_p)
-            related_passages = name2passages[name]
-            temp = [passage for passage in related_passages if passage != target_p]
-            instruction_passage = ''
-            for p in temp:
-                p = p+' '
-                instruction_passage += p
-            passages_for_instruction.append(instruction_passage)
+    # passages_for_instruction = []
+    # if args.instruction_aug:
+    #     for target_p in tqdm(db.values()):
+    #         name = extract_title_with_year(target_p)
+    #         related_passages = name2passages[name]
+    #         temp = [passage for passage in related_passages if passage != target_p]
+    #         instruction_passage = ''
+    #         for p in temp:
+    #             p = p+' '
+    #             instruction_passage += p
+    #         passages_for_instruction.append(instruction_passage)
 
     
     d_rep= []
     for i, sample in enumerate(tqdm(documents, desc="Encoding documents")):
         batch_documents = documents[i]
-        if args.instruction_aug:
-            # passages_for_instruction = [passage for passage in db.values() if passage != batch_documents and extract_title_with_year(passage)==extract_title_with_year(batch_documents)]
-            instruction_passage = passages_for_instruction[i]
-            instruction = doc_instr+instruction_passage
-        else:
-            instruction = doc_instr
+        instruction = doc_instr
         d_rep.append(model.encode(batch_documents, instruction=gritlm_instruction(instruction))) # self-attention 적용하려면 encode batch size 아이템에 대한 passage 개수로 설정해야함 
     d_rep=np.stack(d_rep, axis=0)
     print('document shape:',torch.from_numpy(d_rep).shape)
@@ -154,10 +159,10 @@ def inference(args):
             # cos_sim = torch.softmax(cos_sim/0.02, dim=-1)
             
             if args.pooling in ['max', 'both']:
-                max_sim = cos_sim.view(len(q_rep), len(name2id), len(db.values())//len(name2id))
+                max_sim = cos_sim.view(len(q_rep), len(name2id), len(documents)//len(name2id))
                 max_pooled_sim = max_sim.max(dim=-1).values # (B, num_items)
-                topk_sim_values, topk_max_indices = torch.topk(max_pooled_sim, k=50, dim=-1)
-                topk_sim_indices = topk_max_indices * 5
+                topk_sim_values, topk_max_indices = torch.topk(max_pooled_sim, k=20, dim=-1)
+                topk_sim_indices = topk_max_indices * args.passage_num
                 
                 # rank += topk_max_indices.tolist()
                 
@@ -168,12 +173,12 @@ def inference(args):
                 sum_sim = cos_sim.sum(dim=-1) # [B, num_items]
                 passage_count = mask_tensor.sum(dim=-1) # [1, num_items]
                 mean_pooled_sim = sum_sim / passage_count
-                topk_sim_values, topk_mean_indices = torch.topk(mean_pooled_sim, k=50, dim=-1) # 아이템에 대한 점수 이기 때문에 다시 passage 인덱스로 바꿔줘서 DB 내에 있는 값과 매칭되도록 함
+                topk_sim_values, topk_mean_indices = torch.topk(mean_pooled_sim, k=20, dim=-1) # 아이템에 대한 점수 이기 때문에 다시 passage 인덱스로 바꿔줘서 DB 내에 있는 값과 매칭되도록 함
                 
                 if args.pooling=='mean':
-                    topk_sim_indices = topk_mean_indices * 5
+                    topk_sim_indices = topk_mean_indices * args.passage_num
                 elif args.pooling=='both':
-                    topk_mean_indices = topk_mean_indices * 5
+                    topk_mean_indices = topk_mean_indices * args.passage_num
                 
                 # if args.pooling == 'mean':
                 #     rank += topk_mean_indices.tolist()
