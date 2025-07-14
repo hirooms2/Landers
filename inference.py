@@ -198,7 +198,7 @@ def inference(args):
             test_data[i]["max_cand_list"] = max_item_list
             test_data[i]["mean_cand_list"] = mean_item_list
 
-            if passages is not None:
+            if passages:
                 test_data[i]['max_passages'] = passage_list
 
             with open(to_json, "w", encoding="utf-8") as fwr:
