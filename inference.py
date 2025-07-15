@@ -42,7 +42,7 @@ def inference(args):
     data_path = os.path.join(args.home, 'training/crs_data', args.data_json)
     db_path = os.path.join(args.home, 'training/crs_data', args.db_json)
     embeddings_path = os.path.join(args.home, 'training/crs_data', args.embeddings_path)
-    saved_time = '1234'  # model_path.split('/')[-2]
+    saved_time = model_path.split('/')[-2]
     to_json = os.path.join(args.home, 'results', f"{saved_time}_{args.to_json}.jsonl")
 
     # merged_model = lora_model.merge_and_unload()
@@ -140,80 +140,80 @@ def inference(args):
         torch.save(documents, embeddings_path)
         print("Embedding 저장 완료")
     
-    # # 마스크 생성 (N/A가 포함된 passage에 마스킹)
-    # masks = torch.tensor([0 if "N/A" in doc else 1 for doc in documents])  # [N]
-    # print("mask shape: ", masks.shape)
+    # 마스크 생성 (N/A가 포함된 passage에 마스킹)
+    masks = torch.tensor([0 if "N/A" in doc else 1 for doc in documents])  # [N]
+    print("mask shape: ", masks.shape)
 
-    # max_rank, mean_rank = [], []
-    # passages = []
-    # answer_passages = []
-    # for i in tqdm(range(0, len(queries), args.batch_size)):
-    #     batch_queries = queries[i: i + args.batch_size]
-    #     q_rep = model.encode(batch_queries, instruction=gritlm_instruction(query_instr))  # [B, d]
+    max_rank, mean_rank = [], []
+    passages = []
+    answer_passages = []
+    for i in tqdm(range(0, len(queries), args.batch_size)):
+        batch_queries = queries[i: i + args.batch_size]
+        q_rep = model.encode(batch_queries, instruction=gritlm_instruction(query_instr))  # [B, d]
 
-    #     q_rep_tensor = torch.from_numpy(q_rep)
-    #     d_rep_tensor = torch.from_numpy(d_rep)
-    #     mask_tensor = masks.view(len(name2id), -1).unsqueeze(0)  # [1, num_items, features]
+        q_rep_tensor = torch.from_numpy(q_rep)
+        d_rep_tensor = torch.from_numpy(d_rep)
+        mask_tensor = masks.view(len(name2id), -1).unsqueeze(0)  # [1, num_items, features]
 
-    #     # print('queries shape:', torch.from_numpy(q_rep).shape) 
+        # print('queries shape:', torch.from_numpy(q_rep).shape) 
 
-    #     cos_sim = F.cosine_similarity(q_rep_tensor.unsqueeze(1), d_rep_tensor.unsqueeze(0), dim=-1)  # [B, 1, d] x [1, N, d] = [B, N]
-    #     cos_sim = torch.where(torch.isnan(cos_sim), torch.full_like(cos_sim, 0), cos_sim)  # [B, N]
-    #     # cos_sim = cos_sim.masked_fill(masks.unsqueeze(0) == 0, float('-inf'))
-    #     # cos_sim = torch.softmax(cos_sim/0.02, dim=-1)
+        cos_sim = F.cosine_similarity(q_rep_tensor.unsqueeze(1), d_rep_tensor.unsqueeze(0), dim=-1)  # [B, 1, d] x [1, N, d] = [B, N]
+        cos_sim = torch.where(torch.isnan(cos_sim), torch.full_like(cos_sim, 0), cos_sim)  # [B, N]
+        # cos_sim = cos_sim.masked_fill(masks.unsqueeze(0) == 0, float('-inf'))
+        # cos_sim = torch.softmax(cos_sim/0.02, dim=-1)
 
-    #     # cos_sim = cos_sim.view(len(q_rep), len(name2id), len(documents) // len(name2id))  # [B, I, P] where N = I x P
+        # cos_sim = cos_sim.view(len(q_rep), len(name2id), len(documents) // len(name2id))  # [B, I, P] where N = I x P
 
-    #     # max pooling
-    #     cos_sim_max = cos_sim.masked_fill(masks.unsqueeze(0) == 0, float('-inf'))
-    #     cos_sim_max = cos_sim_max.view(len(q_rep), len(name2id), len(documents) // len(name2id))
-    #     max_pooled_sim = cos_sim_max.max(dim=-1).values  # [B, I]
-    #     max_pooled_indices = cos_sim_max.max(dim=-1).indices  # [B, I] idx of selected passages by batch
-    #     max_topk_sim_values, max_topk_sim_indices = torch.topk(max_pooled_sim, k=args.top_k, dim=-1)  # [B, K], [B, K]
-    #     gatherd_selected_passage_idx = torch.gather(max_pooled_indices, 1, max_topk_sim_indices)  # [B, K] passage idx correspond to top-k item by batch
+        # max pooling
+        cos_sim_max = cos_sim.masked_fill(masks.unsqueeze(0) == 0, float('-inf'))
+        cos_sim_max = cos_sim_max.view(len(q_rep), len(name2id), len(documents) // len(name2id))
+        max_pooled_sim = cos_sim_max.max(dim=-1).values  # [B, I]
+        max_pooled_indices = cos_sim_max.max(dim=-1).indices  # [B, I] idx of selected passages by batch
+        max_topk_sim_values, max_topk_sim_indices = torch.topk(max_pooled_sim, k=args.top_k, dim=-1)  # [B, K], [B, K]
+        gatherd_selected_passage_idx = torch.gather(max_pooled_indices, 1, max_topk_sim_indices)  # [B, K] passage idx correspond to top-k item by batch
 
-    #     max_rank += max_topk_sim_indices.tolist()  # extend
-    #     passages += gatherd_selected_passage_idx.tolist()
-    #     print('rank length:', len(max_rank))
-    #     print('passages length:', len(passages))
+        max_rank += max_topk_sim_indices.tolist()  # extend
+        passages += gatherd_selected_passage_idx.tolist()
+        print('rank length:', len(max_rank))
+        print('passages length:', len(passages))
 
-    #     # mean pooling
-    #     cos_sim_mean = cos_sim.view(len(q_rep), len(name2id), len(documents) // len(name2id))
-    #     cos_sim_mean = cos_sim_mean * mask_tensor
-    #     sum_sim = cos_sim_mean.sum(dim=-1)  # [1, num_items]
-    #     passage_count = mask_tensor.sum(dim=-1)
-    #     mean_pooled_sim = sum_sim / passage_count
-    #     mean_topk_sim_values, mean_topk_sim_indices = torch.topk(mean_pooled_sim, k=args.top_k, dim=-1)
+        # mean pooling
+        cos_sim_mean = cos_sim.view(len(q_rep), len(name2id), len(documents) // len(name2id))
+        cos_sim_mean = cos_sim_mean * mask_tensor
+        sum_sim = cos_sim_mean.sum(dim=-1)  # [1, num_items]
+        passage_count = mask_tensor.sum(dim=-1)
+        mean_pooled_sim = sum_sim / passage_count
+        mean_topk_sim_values, mean_topk_sim_indices = torch.topk(mean_pooled_sim, k=args.top_k, dim=-1)
 
-    #     mean_rank += mean_topk_sim_indices.tolist()
-    #     print('rank length:', len(mean_rank))
+        mean_rank += mean_topk_sim_indices.tolist()
+        print('rank length:', len(mean_rank))
 
-    # # Hit@k 성능 확인
-    # print('model path:', model_path)
-    # print('Max pooling')
-    # recall_score(rec_lists, max_rank, ks=[1, 3, 5, 10, 20, 50])
+    # Hit@k 성능 확인
+    print('model path:', model_path)
+    print('Max pooling')
+    recall_score(rec_lists, max_rank, ks=[1, 3, 5, 10, 20, 50])
 
-    # print('Mean pooling')
-    # recall_score(rec_lists, mean_rank, ks=[1, 3, 5, 10, 20, 50])
+    print('Mean pooling')
+    recall_score(rec_lists, mean_rank, ks=[1, 3, 5, 10, 20, 50])
 
-    # if args.store_results:
-    #     for i in tqdm(range(len(max_rank))):
-    #         # ranked_list = {j: id2name[j] for j in rank[i]}
-    #         max_item_list = [id2name[j] for j in max_rank[i]][:args.top_k]
-    #         mean_item_list = [id2name[j] for j in mean_rank[i]][:args.top_k]
-    #         passage_list = [db[item][j] for item, j in zip(max_item_list, passages[i])]  # K passages
+    if args.store_results:
+        for i in tqdm(range(len(max_rank))):
+            # ranked_list = {j: id2name[j] for j in rank[i]}
+            max_item_list = [id2name[j] for j in max_rank[i]][:args.top_k]
+            mean_item_list = [id2name[j] for j in mean_rank[i]][:args.top_k]
+            passage_list = [db[item][j] for item, j in zip(max_item_list, passages[i])]  # K passages
 
-    #         # test_data[i]["cand_list"] = ranked_list
-    #         test_data[i]["max_cand_list"] = max_item_list
-    #         test_data[i]["mean_cand_list"] = mean_item_list
+            # test_data[i]["cand_list"] = ranked_list
+            test_data[i]["max_cand_list"] = max_item_list
+            test_data[i]["mean_cand_list"] = mean_item_list
 
-    #         if passages:
-    #             test_data[i]['max_passages'] = passage_list
+            if passages:
+                test_data[i]['max_passages'] = passage_list
 
-    #         with open(to_json, "w", encoding="utf-8") as fwr:
-    #             for example in test_data:
-    #                 fwr.write(json.dumps(example))
-    #                 fwr.write("\n")
+            with open(to_json, "w", encoding="utf-8") as fwr:
+                for example in test_data:
+                    fwr.write(json.dumps(example))
+                    fwr.write("\n")
 
 
 if __name__ == '__main__':
