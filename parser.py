@@ -11,7 +11,7 @@ def parse_args():
     parser.add_argument('--doc_instr', type=str, default='Represent the item description for retrieval:')
     parser.add_argument('--data_json', type=str, default='inspired2/test_processed_title.jsonl')
     parser.add_argument('--db_json', type=str, default='inspired2/inspired2_item_db_title.jsonl')
-    parser.add_argument('--embeddings_path', type=str, default='inspired2/inspired2_item_embeddings2.pt')
+    parser.add_argument('--embeddings_path', type=str, default='')
     parser.add_argument('--base_model_path', type=str, default='"GritLM/GritLM-7B"')
     parser.add_argument('--target_model_path', type=str, default='')
     parser.add_argument('--to_json', type=str, default='log_name')
