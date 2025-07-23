@@ -154,7 +154,7 @@ def inference(args):
 
         q_rep_tensor = torch.from_numpy(q_rep)
         d_rep_tensor = torch.from_numpy(d_rep)
-        mask_tensor = masks.view(len(name2id), -1).unsqueeze(0)  # [1, num_items, features]
+        mask_tensor = masks.view(len(name2id), -1).unsqueeze(0)  # [1, num_items, # categories]
 
         # print('queries shape:', torch.from_numpy(q_rep).shape) 
 
@@ -181,9 +181,9 @@ def inference(args):
         # mean pooling
         cos_sim_mean = cos_sim.view(len(q_rep), len(name2id), len(documents) // len(name2id))
         cos_sim_mean = cos_sim_mean * mask_tensor
-        sum_sim = cos_sim_mean.sum(dim=-1)  # [1, num_items]
+        sum_sim = cos_sim_mean.sum(dim=-1)  # [B, num_items]
         passage_count = mask_tensor.sum(dim=-1)
-        mean_pooled_sim = sum_sim / passage_count
+        mean_pooled_sim = sum_sim / (passage_count + 1e-10)
         mean_topk_sim_values, mean_topk_sim_indices = torch.topk(mean_pooled_sim, k=args.top_k, dim=-1)
 
         mean_rank += mean_topk_sim_indices.tolist()
