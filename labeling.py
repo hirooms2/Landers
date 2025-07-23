@@ -15,7 +15,7 @@ from openai import OpenAI
 import textgrad as tg
 
 from utils.parser import parse_args
-from prompts.prompts import prompt_for_general_feature
+from prompts.prompts import new_prompt, labeling_prompt
 
 
 def passages_post_processing(error_items: list, text: str):
@@ -33,7 +33,7 @@ def passages_post_processing(error_items: list, text: str):
     return processed
 
 
-prompt = prompt_for_general_feature
+prompt = labeling_prompt
 print()
 
 if __name__ == "__main__":
@@ -47,9 +47,9 @@ if __name__ == "__main__":
 
     # Train dataset load & represent as a dictionary
     train_dataset = pickle.load(open('training/crs_data/inspired2/train_dataset_inspired2.pkl', 'rb'))
-    dict_dialogs = defaultdict(list)
-    for sample in train_dataset:
-        dict_dialogs[sample['topic']].append('\n'.join(sample['dialog'].split('\n')[-5:]))
+    # dict_dialogs = defaultdict(list)
+    # for sample in train_dataset:
+    #     dict_dialogs[sample['topic']].append('\n'.join(sample['dialog'].split('\n')[-5:]))
 
     # PassageDB load
     db = json.load(open(args.db_path, 'r', encoding='utf-8'))
@@ -63,88 +63,70 @@ if __name__ == "__main__":
 
     # Save refined corpus
     saved_time = str(datetime.now(timezone('Asia/Seoul')).strftime('%m%d-%H%M%S'))
-    save_path = os.path.join('refine_results', f"{saved_time}_{args.output_file}.jsonl")
+    save_path = os.path.join('labeling_results', f"{saved_time}_{args.db_path.split('/')[1]}_labeling.jsonl")
     # processing_dict = defaultdict(dict)
-    refined_dict = defaultdict(dict)
+    labeled_dict = defaultdict(dict)
 
-    error_items = []
-    items = dict_dialogs.keys()
+    error_sample = []
+    # items = dict_dialogs.keys()
 
     # Refine
-    for epoch in range(args.epochs):
-        print(f"\n===== EPOCH {epoch + 1} =====")
-        pbar = tqdm(total=len(dict_dialogs.keys()), desc=f"Refine corpus (epoch {epoch + 1})", unit="dialog")
-        for target_item in items:
-            dialogs = dict_dialogs[target_item]
-            random.shuffle(dialogs)
-            dialogs = dialogs[:args.batch_size * 2]
+    for idx, sample in tqdm(enumerate(train_dataset), total=len(train_dataset)):
+        # pbar = tqdm(total=len(train_dataset), desc="Labeling", unit="sample")
 
-            # dict_db[target_item] = '\n'.join([f"Passage {idx+1}. {passage}" for idx, passage in enumerate(dict_db[target_item])])
-            num_batch = math.ceil(len(dialogs) / args.batch_size)
-            for i in range(num_batch):
-                task_prompt = prompt
+        dialog = sample['dialog']
+        target_item = sample['topic']
+        item_features = dict_db[target_item]
 
-                # dialog 처리
-                batch_dialogs = dialogs[i * args.batch_size:(i + 1) * args.batch_size]
-                dialog_str = '\n\n'.join([f"Dialog {d_idx + 1}\n{dialog}" for d_idx, dialog in enumerate(batch_dialogs)])
+        processing_features = []
+        for f in item_features:
+            key = f
+            value = item_features[f]
+            if 'N/A' not in value:
+                processing_features.append(f"{target_item} | {key} | {value}")
+            else:
+                continue
 
-                # passages 처리
-                if target_item in dict_db:
-                    passage_list = dict_db[target_item]
+        processing_features.append('No relevant item feature')
+        item_features = "\n".join([f"{idx+1}. {feature}" for idx,feature in enumerate(processing_features)])
+        # print()
 
-                    if isinstance(passage_list, dict) :
-                        passages_str = json.dumps(passage_list, indent=4, ensure_ascii=False)
-                    elif isinstance(passage_list, list):
-                        passages_str = '\n'.join([f"Passage {idx + 1}. {passage}" for idx, passage in enumerate(passage_list)])
+        task_prompt = labeling_prompt.format(dialog=dialog, target_item=target_item, item_features=item_features)
 
-                    task_prompt = task_prompt.format(Dialogs=dialog_str, target_item=target_item, passages=passages_str)
+        # Output
+        response = client.chat.completions.create(
+            model=MODEL,
+            messages=[{"role": "system", "content": "You are a helpful assistant."},
+                      {"role": "user", "content": task_prompt}
+                      ],
+        )
+        response = response.choices[0].message.content
 
-                    # Output
-                    response = client.chat.completions.create(
-                        model=MODEL,
-                        messages=[{"role": "system", "content": "You are a helpful assistant."},
-                                  {"role": "user", "content": task_prompt}
-                                  ],
-                    )
-                    response = response.choices[0].message.content
+        # 파싱
+        # match_answer = re.search(r'<answer>\s*([\s\S]+?)\s*</answer>', response)
+        match_think = response.split('<answer>')[0].strip()
+        match_answer = response.split('<answer>')[1].strip()
+        if '</answer>' in match_answer:
+            selected_feature = match_answer.split('</answer>')[0].strip()
+        else:
+            selected_feature = match_answer
 
-                    # 파싱
-                    # match_answer = re.search(r'<answer>\s*([\s\S]+?)\s*</answer>', response)
-                    match_think = response.split('<answer>')[0].strip()
-                    match_answer = response.split('<answer>')[1].strip()
-                    if '</answer>' in match_answer:
-                        passages = match_answer.split('</answer>')[0].strip()
-                    else:
-                        passages = match_answer
+        # match_think = re.search(r'<think>\s*([\s\S]+?)\s*</think>', response)
+        if match_answer:
+            # refined_dict[target_item] = passage_list
+            processing_data = {"dialog": dialog, "target_item": target_item, "candidate_features": item_features, "Think": match_think, "selected_feature": selected_feature}
+            with open(save_path, "a", encoding="utf-8") as fw:
+                fw.write(json.dumps(processing_data, ensure_ascii=False) + '\n')
+        else:
+            print(f"[Format error] {idx} - (No <answer> tag found.)")
+            print(response)
+            error_sample.append(idx)
+        # pbar.update(1)
 
-                    # match_think = re.search(r'<think>\s*([\s\S]+?)\s*</think>', response)
-                    if match_answer:
-                        if isinstance(dict_db[target_item], list):
-                            passage_list = [line.strip() for line in passages.split('\n') if line.strip()]
-                            passage_list = [re.sub(r'^Passage \d+\.\s*', '', passage) for passage in passage_list]
-                            dict_db[target_item] = passage_list
-                            refined_dict[target_item] = passage_list
-                        elif isinstance(dict_db[target_item], dict):
-                            passage_list = passages
-                            dict_db[target_item] = json.loads(passage_list)
-                            refined_dict[target_item] = json.loads(passage_list)
 
-                        # refined_dict[target_item] = passage_list
-                        processing_data = {"input_prompt": task_prompt, "initial_passages": passages_str, "Think": match_think, "Answer": passage_list}
-                    else:
-                        print(f"[Format error] {target_item} - (No <answer> tag found.)")
-                        print(response)
-                        error_items.append(target_item)
-                        break
+        # refine_log 저장하기
 
-                    # refine_log 저장하기
-                    save_path_processing = os.path.join('refine_log', f"{saved_time}_E{epoch + 1}.jsonl")
-                    with open(save_path_processing, "a", encoding="utf-8") as fw:
-                        fw.write(json.dumps(processing_data, ensure_ascii=False) + '\n')
-                else:
-                    # 없을 때 처리
-                    print(f"[Warning] {target_item} not found in dict_db")
-                    break
+
 
 
                 ################################################################################################################
@@ -189,13 +171,13 @@ if __name__ == "__main__":
                 # with open(save_path_processing, "a", encoding="utf-8") as fw:
                 #     fw.write(json.dumps(processing_data, ensure_ascii=False) + '\n')
 
-            pbar.update(1)
-
-            save_path_result = os.path.join('refine_results', f"{saved_time}_E{epoch + 1}.jsonl")
-            with open(save_path_result, "w", encoding="utf-8") as fw:
-                json.dump(refined_dict, fw, ensure_ascii=False, indent=2)
-
-        pbar.close()
+        #     pbar.update(1)
+        #
+        #     save_path_result = os.path.join('refine_results', f"{saved_time}_E{epoch + 1}.jsonl")
+        #     with open(save_path_result, "w", encoding="utf-8") as fw:
+        #         json.dump(refined_dict, fw, ensure_ascii=False, indent=2)
+        #
+        # pbar.close()
 
         # new_passage_list = response.split()
         # new_passage_list = passages_post_processing(error_items, passages.value)

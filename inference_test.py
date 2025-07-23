@@ -1,7 +1,7 @@
 from gritlm import GritLM
 from peft import PeftModel
 from collections import defaultdict
-from parser import parse_args
+from utils.parser import parse_args
 from tqdm import tqdm
 
 import torch.nn.functional as F
