@@ -12,6 +12,7 @@ import torch
 import numpy as np
 from gritlm_prompter import Prompter
 
+# git 250723
 
 def extract_title_with_year(text):
     # 괄호 안에 4자리 숫자(연도) + ) + 공백 패턴을 가장 마지막에서 찾기
