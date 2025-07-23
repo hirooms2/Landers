@@ -147,6 +147,8 @@ def inference(args):
 
     max_rank, mean_rank = [], []
     passages = []
+    hard_passages = []
+
     answer_passages = []
     for i in tqdm(range(0, len(queries), args.batch_size)):
         batch_queries = queries[i: i + args.batch_size]
@@ -161,6 +163,8 @@ def inference(args):
         cos_sim = F.cosine_similarity(q_rep_tensor.unsqueeze(1), d_rep_tensor.unsqueeze(0), dim=-1)  # [B, 1, d] x [1, N, d] = [B, N]
         cos_sim = torch.where(torch.isnan(cos_sim), torch.full_like(cos_sim, 0), cos_sim)  # [B, N]
         # cos_sim = cos_sim.masked_fill(masks.unsqueeze(0) == 0, float('-inf'))
+        top20_passages = torch.topk(cos_sim, k=20, dim=-1).indices  # [B, 20]
+        hard_passages += top20_passages.tolist()
         # cos_sim = torch.softmax(cos_sim/0.02, dim=-1)
 
         # cos_sim = cos_sim.view(len(q_rep), len(name2id), len(documents) // len(name2id))  # [B, I, P] where N = I x P
@@ -203,13 +207,15 @@ def inference(args):
             max_item_list = [id2name[j] for j in max_rank[i]][:args.top_k]
             mean_item_list = [id2name[j] for j in mean_rank[i]][:args.top_k]
             passage_list = [db[item][j] for item, j in zip(max_item_list, passages[i])]  # K passages
-
+            hard_passage_list = [documents[i] for i in hard_passages[0]]
+            
             # test_data[i]["cand_list"] = ranked_list
             test_data[i]["max_cand_list"] = max_item_list
             test_data[i]["mean_cand_list"] = mean_item_list
 
             if passages:
                 test_data[i]['max_passages'] = passage_list
+                test_data[i]['hard_passages'] = hard_passage_list
 
             with open(to_json, "w", encoding="utf-8") as fwr:
                 for example in test_data:
