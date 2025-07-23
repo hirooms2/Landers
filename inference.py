@@ -207,7 +207,7 @@ def inference(args):
             max_item_list = [id2name[j] for j in max_rank[i]][:args.top_k]
             mean_item_list = [id2name[j] for j in mean_rank[i]][:args.top_k]
             passage_list = [db[item][j] for item, j in zip(max_item_list, passages[i])]  # K passages
-            hard_passage_list = [documents[i] for i in hard_passages[0]]
+            hard_passage_list = [documents[i] for i in hard_passages[i]]
             
             # test_data[i]["cand_list"] = ranked_list
             test_data[i]["max_cand_list"] = max_item_list
