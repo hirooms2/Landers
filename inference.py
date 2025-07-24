@@ -205,7 +205,16 @@ def inference(args):
             top1_mean_pooled_sim = top1_sum_sim / (top1_passage_count + 1e-10)
             top1_mean_topk_sim_values, top1_mean_topk_sim_indices = torch.topk(top1_mean_pooled_sim, k=args.top_k, dim=-1)
 
+            print(f"배치: {top1_mean_topk_sim_indices.tolist()}")
             mean_k_rank[mean_k-1].extend(top1_mean_topk_sim_indices.tolist())
+            print(f"배치 지나고 저장: {mean_k_rank[mean_k-1]}")
+
+        print(f"5개 나와야됨: {len(mean_k_rank)}")
+        print(f"355개 나와야됨: {len(mean_k_rank[0])}")
+        print(f"355개 나와야됨: {len(mean_k_rank[1])}")
+        print(f"355개 나와야됨: {len(mean_k_rank[2])}")
+        print(f"355개 나와야됨: {len(mean_k_rank[3])}")
+        print(f"355개 나와야됨: {len(mean_k_rank[4])}")
 
         print('rank length:', len(mean_rank))
 
@@ -219,7 +228,7 @@ def inference(args):
 
     for mean_k in range(1, 6):
         print(f'Top-{mean_k} Mean pooling')
-        recall_score(rec_lists, mean_rank[mean_k-1], ks=[1, 3, 5, 10, 20, 50])
+        recall_score(rec_lists, mean_k_rank[mean_k-1], ks=[1, 3, 5, 10, 20, 50])
 
     if args.store_results:
         for i in tqdm(range(len(max_rank))):
