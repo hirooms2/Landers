@@ -213,6 +213,9 @@ def inference(args):
     print('Mean pooling')
     recall_score(rec_lists, mean_rank, ks=[1, 3, 5, 10, 20, 50])
 
+    print('Top-3 Mean pooling')
+    recall_score(rec_lists, top3_mean_rank, ks=[1, 3, 5, 10, 20, 50])
+
     if args.store_results:
         for i in tqdm(range(len(max_rank))):
             # ranked_list = {j: id2name[j] for j in rank[i]}
