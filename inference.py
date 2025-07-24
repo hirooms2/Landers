@@ -213,13 +213,16 @@ def inference(args):
     print('model path:', model_path)
     print('Max pooling')
     recall_score(rec_lists, max_rank, ks=[1, 3, 5, 10, 20, 50])
+    print()
 
     print('Mean pooling')
     recall_score(rec_lists, mean_rank, ks=[1, 3, 5, 10, 20, 50])
+    print()
 
     for mean_k in range(1, 6):
         print(f'Top-{mean_k} Mean pooling')
         recall_score(rec_lists, mean_k_rank[mean_k-1], ks=[1, 3, 5, 10, 20, 50])
+        print()
 
     if args.store_results:
         for i in tqdm(range(len(max_rank))):
