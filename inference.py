@@ -197,9 +197,9 @@ def inference(args):
 
         # top-1 mean pooling
         for mean_k in range(1, 6):
-            top1_cos_sim_mean_indices = torch.topk(cos_sim_mean, k=mean_k, dim=-1).indices  # [B, I, k]
+            top1_cos_sim_mean_indices = torch.topk(cos_sim_mean, k=mean_k, dim=2).indices  # [B, I, k]
             top1_cos_sim_mean_value = torch.topk(cos_sim_mean, k=mean_k, dim=-1).values  # [B, I, k]
-            top1_cos_sum_mean_mask = torch.gather(mask_tensor, dim=-1, index=top1_cos_sim_mean_indices)
+            top1_cos_sum_mean_mask = torch.gather(mask_tensor, dim=2, index=top1_cos_sim_mean_indices)
             top1_sum_sim = top1_cos_sim_mean_value.sum(dim=-1)  # [B, num_items]
             top1_passage_count = top1_cos_sum_mean_mask.sum(dim=-1)
             top1_mean_pooled_sim = top1_sum_sim / (top1_passage_count + 1e-10)
