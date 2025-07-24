@@ -157,7 +157,7 @@ def inference(args):
         q_rep_tensor = torch.from_numpy(q_rep)
         d_rep_tensor = torch.from_numpy(d_rep)
         mask_tensor = masks.view(len(name2id), -1).unsqueeze(0)  # [1, num_items, # categories]
-
+        mask_tensor = mask_tensor.repeat(len(q_rep), 1, 1)  # [B, I, C]
         # print('queries shape:', torch.from_numpy(q_rep).shape) 
 
         cos_sim = F.cosine_similarity(q_rep_tensor.unsqueeze(1), d_rep_tensor.unsqueeze(0), dim=-1)  # [B, 1, d] x [1, N, d] = [B, N]
