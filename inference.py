@@ -145,7 +145,7 @@ def inference(args):
     masks = torch.tensor([0 if "N/A" in doc else 1 for doc in documents])  # [N]
     print("mask shape: ", masks.shape)
 
-    max_rank, mean_rank = [], []
+    max_rank, mean_rank, top3_mean_rank = [], [], []
     passages = []
     hard_passages = []
 
@@ -191,6 +191,18 @@ def inference(args):
         mean_topk_sim_values, mean_topk_sim_indices = torch.topk(mean_pooled_sim, k=args.top_k, dim=-1)
 
         mean_rank += mean_topk_sim_indices.tolist()
+
+        # top-3 mean pooling
+        top3_cos_sim_mean_indices = torch.topk(cos_sim_mean, k=3, dim=-1).indices  # [B, I, k]
+        top3_cos_sim_mean_value = torch.topk(cos_sim_mean, k=3, dim=-1).values  # [B, I, k]
+        top3_cos_sum_mean_mask = torch.gather(mask_tensor, dim=-1, index=top3_cos_sim_mean_indices)
+        top3_sum_sim = top3_cos_sim_mean_value.sum(dim=-1)  # [B, num_items]
+        top3_passage_count = top3_cos_sum_mean_mask.sum(dim=-1)
+        top3_mean_pooled_sim = top3_sum_sim / (top3_passage_count + 1e-10)
+        top3_mean_topk_sim_values, top3_mean_topk_sim_indices = torch.topk(top3_mean_pooled_sim, k=args.top_k, dim=-1)
+
+        top3_mean_rank += top3_mean_topk_sim_indices.tolist()
+
         print('rank length:', len(mean_rank))
 
     # Hit@k 성능 확인
@@ -206,12 +218,15 @@ def inference(args):
             # ranked_list = {j: id2name[j] for j in rank[i]}
             max_item_list = [id2name[j] for j in max_rank[i]][:args.top_k]
             mean_item_list = [id2name[j] for j in mean_rank[i]][:args.top_k]
+            top3_mean_item_list = [id2name[j] for j in mean_rank[i]][:args.top_k]
+
             passage_list = [db[item][j] for item, j in zip(max_item_list, passages[i])]  # K passages
             hard_passage_list = [documents[i] for i in hard_passages[i]]
             
             # test_data[i]["cand_list"] = ranked_list
             test_data[i]["max_cand_list"] = max_item_list
             test_data[i]["mean_cand_list"] = mean_item_list
+            test_data[i]["top3_mean_cand_list"] = top3_mean_item_list
 
             if passages:
                 test_data[i]['max_passages'] = passage_list
