@@ -12,6 +12,7 @@ import torch
 import numpy as np
 from gritlm_prompter import Prompter
 
+
 # git 250723
 
 def extract_title_with_year(text):
@@ -127,7 +128,7 @@ def inference(args):
 
     if args.embeddings_path != '':
         print("Embedding save path: ", embeddings_path)
-        
+
     d_rep = []
     for i, sample in enumerate(tqdm(documents, desc="Encoding documents")):
         batch_documents = documents[i]
@@ -140,12 +141,14 @@ def inference(args):
     if args.embeddings_path != '':
         torch.save(documents, embeddings_path)
         print("Embedding 저장 완료")
-    
+
     # 마스크 생성 (N/A가 포함된 passage에 마스킹)
     masks = torch.tensor([0 if "N/A" in doc else 1 for doc in documents])  # [N]
     print("mask shape: ", masks.shape)
 
-    max_rank, mean_rank, top3_mean_rank = [], [], []
+    max_rank, mean_rank = [], []
+    mean_k_rank = [[], [], [], [], []]
+    # top1_mean_rank, top2_mean_rank, top3_mean_rank, top4_mean_rank, top5_mean_rank = [], [], [], [], []
     passages = []
     hard_passages = []
 
@@ -192,16 +195,17 @@ def inference(args):
 
         mean_rank += mean_topk_sim_indices.tolist()
 
-        # top-3 mean pooling
-        top3_cos_sim_mean_indices = torch.topk(cos_sim_mean, k=3, dim=-1).indices  # [B, I, k]
-        top3_cos_sim_mean_value = torch.topk(cos_sim_mean, k=3, dim=-1).values  # [B, I, k]
-        top3_cos_sum_mean_mask = torch.gather(mask_tensor, dim=-1, index=top3_cos_sim_mean_indices)
-        top3_sum_sim = top3_cos_sim_mean_value.sum(dim=-1)  # [B, num_items]
-        top3_passage_count = top3_cos_sum_mean_mask.sum(dim=-1)
-        top3_mean_pooled_sim = top3_sum_sim / (top3_passage_count + 1e-10)
-        top3_mean_topk_sim_values, top3_mean_topk_sim_indices = torch.topk(top3_mean_pooled_sim, k=args.top_k, dim=-1)
+        # top-1 mean pooling
+        for mean_k in range(1, 6):
+            top1_cos_sim_mean_indices = torch.topk(cos_sim_mean, k=mean_k, dim=-1).indices  # [B, I, k]
+            top1_cos_sim_mean_value = torch.topk(cos_sim_mean, k=mean_k, dim=-1).values  # [B, I, k]
+            top1_cos_sum_mean_mask = torch.gather(mask_tensor, dim=-1, index=top1_cos_sim_mean_indices)
+            top1_sum_sim = top1_cos_sim_mean_value.sum(dim=-1)  # [B, num_items]
+            top1_passage_count = top1_cos_sum_mean_mask.sum(dim=-1)
+            top1_mean_pooled_sim = top1_sum_sim / (top1_passage_count + 1e-10)
+            top1_mean_topk_sim_values, top1_mean_topk_sim_indices = torch.topk(top1_mean_pooled_sim, k=args.top_k, dim=-1)
 
-        top3_mean_rank += top3_mean_topk_sim_indices.tolist()
+            mean_k_rank[mean_k - 1] += top1_mean_topk_sim_indices.tolist()
 
         print('rank length:', len(mean_rank))
 
@@ -213,23 +217,26 @@ def inference(args):
     print('Mean pooling')
     recall_score(rec_lists, mean_rank, ks=[1, 3, 5, 10, 20, 50])
 
-    print('Top-3 Mean pooling')
-    recall_score(rec_lists, top3_mean_rank, ks=[1, 3, 5, 10, 20, 50])
+    for mean_k in range(1, 6):
+        print(f'Top-{mean_k} Mean pooling')
+        recall_score(rec_lists, mean_rank[mean_k-1], ks=[1, 3, 5, 10, 20, 50])
 
     if args.store_results:
         for i in tqdm(range(len(max_rank))):
             # ranked_list = {j: id2name[j] for j in rank[i]}
             max_item_list = [id2name[j] for j in max_rank[i]][:args.top_k]
             mean_item_list = [id2name[j] for j in mean_rank[i]][:args.top_k]
-            top3_mean_item_list = [id2name[j] for j in mean_rank[i]][:args.top_k]
 
             passage_list = [db[item][j] for item, j in zip(max_item_list, passages[i])]  # K passages
             hard_passage_list = [documents[i] for i in hard_passages[i]]
-            
+
             # test_data[i]["cand_list"] = ranked_list
             test_data[i]["max_cand_list"] = max_item_list
             test_data[i]["mean_cand_list"] = mean_item_list
-            test_data[i]["top3_mean_cand_list"] = top3_mean_item_list
+
+            for mean_k in range(1, 6):
+                top3_mean_item_list = [id2name[j] for j in mean_rank[mean_k-1][i]][:args.top_k]
+                test_data[i][f"top_{mean_k}mean_cand_list"] = top3_mean_item_list
 
             if passages:
                 test_data[i]['max_passages'] = passage_list
