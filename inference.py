@@ -244,7 +244,7 @@ def inference(args):
             test_data[i]["mean_cand_list"] = mean_item_list
 
             for mean_k in range(1, 6):
-                top3_mean_item_list = [id2name[j] for j in mean_rank[mean_k-1][i]][:args.top_k]
+                top3_mean_item_list = [id2name[j] for j in mean_k_rank[mean_k-1][i]][:args.top_k]
                 test_data[i][f"top_{mean_k}mean_cand_list"] = top3_mean_item_list
 
             if passages:
