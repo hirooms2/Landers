@@ -205,7 +205,7 @@ def inference(args):
             top1_mean_pooled_sim = top1_sum_sim / (top1_passage_count + 1e-10)
             top1_mean_topk_sim_values, top1_mean_topk_sim_indices = torch.topk(top1_mean_pooled_sim, k=args.top_k, dim=-1)
 
-            mean_k_rank[mean_k - 1] += top1_mean_topk_sim_indices.tolist()
+            mean_k_rank[mean_k-1].extend(top1_mean_topk_sim_indices.tolist())
 
         print('rank length:', len(mean_rank))
 
