@@ -152,6 +152,8 @@ def inference(args):
     passages = []
     hard_passages = []
 
+    cosine_sim_value = []
+
     answer_passages = []
     for i in tqdm(range(0, len(queries), args.batch_size)):
         batch_queries = queries[i: i + args.batch_size]
@@ -169,6 +171,10 @@ def inference(args):
         top20_passages = torch.topk(cos_sim, k=20, dim=-1).indices  # [B, 20]
         hard_passages += top20_passages.tolist()
         # cos_sim = torch.softmax(cos_sim/0.02, dim=-1)
+
+        for b_idx in range(len(batch_queries)):
+            cosine_sim_value.append(cos_sim[b_idx].tolist())
+
 
         # cos_sim = cos_sim.view(len(q_rep), len(name2id), len(documents) // len(name2id))  # [B, I, P] where N = I x P
 
@@ -232,10 +238,12 @@ def inference(args):
 
             passage_list = [db[item][j] for item, j in zip(max_item_list, passages[i])]  # K passages
             hard_passage_list = [documents[i] for i in hard_passages[i]]
+            cosine_value = cosine_sim_value[i]
 
             # test_data[i]["cand_list"] = ranked_list
             test_data[i]["max_cand_list"] = max_item_list
             test_data[i]["mean_cand_list"] = mean_item_list
+            test_data[i]["cosine_value"] = cosine_value
 
             for mean_k in range(1, 6):
                 top3_mean_item_list = [id2name[j] for j in mean_k_rank[mean_k-1][i]][:args.top_k]
