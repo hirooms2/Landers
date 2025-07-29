@@ -202,7 +202,7 @@ def inference(args):
         mean_rank += mean_topk_sim_indices.tolist()
 
         # top-1 mean pooling
-        for mean_k in range(1, 5):
+        for mean_k in range(1, len(list(db.values())[0])+1):
             top1_cos_sim_mean_indices = torch.topk(cos_sim_mean, k=mean_k, dim=2).indices  # [B, I, k]
             top1_cos_sim_mean_value = torch.topk(cos_sim_mean, k=mean_k, dim=-1).values  # [B, I, k]
             top1_cos_sum_mean_mask = torch.gather(mask_tensor, dim=2, index=top1_cos_sim_mean_indices)
@@ -225,7 +225,7 @@ def inference(args):
     recall_score(rec_lists, mean_rank, ks=[1, 3, 5, 10, 20, 50])
     print()
 
-    for mean_k in range(1, 5):
+    for mean_k in range(1, len(list(db.values())[0])+1):
         print(f'Top-{mean_k} Mean pooling')
         recall_score(rec_lists, mean_k_rank[mean_k-1], ks=[1, 3, 5, 10, 20, 50])
         print()
@@ -245,7 +245,7 @@ def inference(args):
             test_data[i]["mean_cand_list"] = mean_item_list
             test_data[i]["cosine_value"] = cosine_value
 
-            for mean_k in range(1, 5):
+            for mean_k in range(1, len(list(db.values())[0])+1):
                 top3_mean_item_list = [id2name[j] for j in mean_k_rank[mean_k-1][i]][:args.top_k]
                 test_data[i][f"top_{mean_k}mean_cand_list"] = top3_mean_item_list
 
