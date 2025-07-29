@@ -147,7 +147,9 @@ def inference(args):
     print("mask shape: ", masks.shape)
 
     max_rank, mean_rank = [], []
-    mean_k_rank = [[], [], [], []]
+    num_categories = len(list(db.values())[0])
+    mean_k_rank = [[] for _ in range(num_categories)]
+
     # top1_mean_rank, top2_mean_rank, top3_mean_rank, top4_mean_rank, top5_mean_rank = [], [], [], [], []
     passages = []
     hard_passages = []
