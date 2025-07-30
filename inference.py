@@ -73,6 +73,14 @@ def inference(args):
         all_names = [extract_title_with_year(v) for v in db.values()]
     documents = [doc[:prompter.max_char_len * 10] for doc in documents]
 
+    all_names_prev = [extract_title_with_year(v) for v in db.values()]
+    if len(all_names) != len(all_names_prev):
+        print("Length of all_names_prev does not match length of all_names")
+    else:
+        for i in range(len(all_names)):
+            if all_names_prev[i] != all_names[i]:
+                print(all_names_prev[i], all_names[i])
+
     if args.debug_mode:
         documents = documents[:12]
         all_names = all_names[:2]
@@ -90,6 +98,9 @@ def inference(args):
     id2name = {v: k for k, v in name2id.items()}
 
     rec_lists = [[name2id[i]] for i in labels if i in name2id]  # target item id로 바꿔서 저장
+    print(f"rec_lists: {len(rec_lists)}")
+    rec_lists_prev = [[name2id[i]] for i in labels]  # target item id로 바꿔서 저장
+    print(f"(temp) rec_lists_prev: {len(rec_lists_prev)}")
 
     # Loads the model for both capabilities; If you only need embedding pass `mode="embedding"` to save memory (no lm head)
     model = GritLM("GritLM/GritLM-7B", mode='embedding', torch_dtype="auto")
@@ -133,7 +144,8 @@ def inference(args):
     for i, sample in enumerate(tqdm(documents, desc="Encoding documents")):
         batch_documents = documents[i]
         instruction = doc_instr
-        d_rep.append(model.encode(batch_documents, instruction=gritlm_instruction(instruction)))  # self-attention 적용하려면 encode batch size 아이템에 대한 passage 개수로 설정해야함
+        d_rep.append(model.encode(batch_documents, instruction=gritlm_instruction(
+            instruction)))  # self-attention 적용하려면 encode batch size 아이템에 대한 passage 개수로 설정해야함
         # d_rep.append([i] * 100)  # self-attention 적용하려면 encode batch size 아이템에 대한 passage 개수로 설정해야함
     d_rep = np.stack(d_rep, axis=0)
     print('document shape:', torch.from_numpy(d_rep).shape)
@@ -145,9 +157,11 @@ def inference(args):
     # 마스크 생성 (N/A가 포함된 passage에 마스킹)
     masks = torch.tensor([0 if "N/A" in doc else 1 for doc in documents])  # [N]
     print("mask shape: ", masks.shape)
+    print("mask sum: ", torch.sum(masks))
 
     max_rank, mean_rank = [], []
     num_categories = len(list(db.values())[0])
+    print("num_categories: ", num_categories)
     mean_k_rank = [[] for _ in range(num_categories)]
 
     # top1_mean_rank, top2_mean_rank, top3_mean_rank, top4_mean_rank, top5_mean_rank = [], [], [], [], []
@@ -167,7 +181,8 @@ def inference(args):
         mask_tensor = mask_tensor.repeat(len(q_rep), 1, 1)  # [B, I, C]
         # print('queries shape:', torch.from_numpy(q_rep).shape) 
 
-        cos_sim = F.cosine_similarity(q_rep_tensor.unsqueeze(1), d_rep_tensor.unsqueeze(0), dim=-1)  # [B, 1, d] x [1, N, d] = [B, N]
+        cos_sim = F.cosine_similarity(q_rep_tensor.unsqueeze(1), d_rep_tensor.unsqueeze(0),
+                                      dim=-1)  # [B, 1, d] x [1, N, d] = [B, N]
         cos_sim = torch.where(torch.isnan(cos_sim), torch.full_like(cos_sim, 0), cos_sim)  # [B, N]
         # cos_sim = cos_sim.masked_fill(masks.unsqueeze(0) == 0, float('-inf'))
         top20_passages = torch.topk(cos_sim, k=20, dim=-1).indices  # [B, 20]
@@ -177,7 +192,6 @@ def inference(args):
         for b_idx in range(len(batch_queries)):
             cosine_sim_value.append(cos_sim[b_idx].tolist())
 
-
         # cos_sim = cos_sim.view(len(q_rep), len(name2id), len(documents) // len(name2id))  # [B, I, P] where N = I x P
 
         # max pooling
@@ -186,7 +200,8 @@ def inference(args):
         max_pooled_sim = cos_sim_max.max(dim=-1).values  # [B, I]
         max_pooled_indices = cos_sim_max.max(dim=-1).indices  # [B, I] idx of selected passages by batch
         max_topk_sim_values, max_topk_sim_indices = torch.topk(max_pooled_sim, k=args.top_k, dim=-1)  # [B, K], [B, K]
-        gatherd_selected_passage_idx = torch.gather(max_pooled_indices, 1, max_topk_sim_indices)  # [B, K] passage idx correspond to top-k item by batch
+        gatherd_selected_passage_idx = torch.gather(max_pooled_indices, 1,
+                                                    max_topk_sim_indices)  # [B, K] passage idx correspond to top-k item by batch
 
         max_rank += max_topk_sim_indices.tolist()  # extend
         passages += gatherd_selected_passage_idx.tolist()
@@ -204,16 +219,17 @@ def inference(args):
         mean_rank += mean_topk_sim_indices.tolist()
 
         # top-1 mean pooling
-        for mean_k in range(1, len(list(db.values())[0])+1):
+        for mean_k in range(1, len(list(db.values())[0]) + 1):
             top1_cos_sim_mean_indices = torch.topk(cos_sim_mean, k=mean_k, dim=2).indices  # [B, I, k]
             top1_cos_sim_mean_value = torch.topk(cos_sim_mean, k=mean_k, dim=-1).values  # [B, I, k]
             top1_cos_sum_mean_mask = torch.gather(mask_tensor, dim=2, index=top1_cos_sim_mean_indices)
             top1_sum_sim = top1_cos_sim_mean_value.sum(dim=-1)  # [B, num_items]
             top1_passage_count = top1_cos_sum_mean_mask.sum(dim=-1)
             top1_mean_pooled_sim = top1_sum_sim / (top1_passage_count + 1e-10)
-            top1_mean_topk_sim_values, top1_mean_topk_sim_indices = torch.topk(top1_mean_pooled_sim, k=args.top_k, dim=-1)
+            top1_mean_topk_sim_values, top1_mean_topk_sim_indices = torch.topk(top1_mean_pooled_sim, k=args.top_k,
+                                                                               dim=-1)
 
-            mean_k_rank[mean_k-1].extend(top1_mean_topk_sim_indices.tolist())
+            mean_k_rank[mean_k - 1].extend(top1_mean_topk_sim_indices.tolist())
 
         print('rank length:', len(mean_rank))
 
@@ -227,9 +243,9 @@ def inference(args):
     recall_score(rec_lists, mean_rank, ks=[1, 3, 5, 10, 20, 50])
     print()
 
-    for mean_k in range(1, len(list(db.values())[0])+1):
+    for mean_k in range(1, len(list(db.values())[0]) + 1):
         print(f'Top-{mean_k} Mean pooling')
-        recall_score(rec_lists, mean_k_rank[mean_k-1], ks=[1, 3, 5, 10, 20, 50])
+        recall_score(rec_lists, mean_k_rank[mean_k - 1], ks=[1, 3, 5, 10, 20, 50])
         print()
 
     if args.store_results:
@@ -247,8 +263,8 @@ def inference(args):
             test_data[i]["mean_cand_list"] = mean_item_list
             test_data[i]["cosine_value"] = cosine_value
 
-            for mean_k in range(1, len(list(db.values())[0])+1):
-                top3_mean_item_list = [id2name[j] for j in mean_k_rank[mean_k-1][i]][:args.top_k]
+            for mean_k in range(1, len(list(db.values())[0]) + 1):
+                top3_mean_item_list = [id2name[j] for j in mean_k_rank[mean_k - 1][i]][:args.top_k]
                 test_data[i][f"top_{mean_k}mean_cand_list"] = top3_mean_item_list
 
             if passages:
