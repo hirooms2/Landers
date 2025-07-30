@@ -189,7 +189,7 @@ def inference(args):
         # cos_sim = cos_sim.masked_fill(masks.unsqueeze(0) == 0, float('-inf'))
         top20_passages = torch.topk(cos_sim, k=20, dim=-1).indices  # [B, 20]
         hard_passages += top20_passages.tolist()
-        # cos_sim = torch.softmax(cos_sim/0.02, dim=-1)
+        cos_sim = torch.softmax(cos_sim/0.02, dim=-1)
 
         for b_idx in range(len(batch_queries)):
             cosine_sim_value.append(cos_sim[b_idx].tolist())
@@ -198,6 +198,7 @@ def inference(args):
 
         # max pooling
         cos_sim_max = cos_sim.masked_fill(masks.unsqueeze(0) == 0, float('-inf'))
+
         cos_sim_max = cos_sim_max.view(len(q_rep), len(name2id), len(documents) // len(name2id))
         max_pooled_sim = cos_sim_max.max(dim=-1).values  # [B, I]
         max_pooled_indices = cos_sim_max.max(dim=-1).indices  # [B, I] idx of selected passages by batch
