@@ -73,7 +73,8 @@ def inference(args):
         all_names = [extract_title_with_year(v) for v in db.values()]
     documents = [doc[:prompter.max_char_len * 10] for doc in documents]
 
-    all_names_prev = [extract_title_with_year(v) for v in db.values()]
+    print( list(db.values())[:10])
+    all_names_prev = [extract_title_with_year(v) for v in list(db.values())]
     if len(all_names) != len(all_names_prev):
         print("Length of all_names_prev does not match length of all_names")
     else:
