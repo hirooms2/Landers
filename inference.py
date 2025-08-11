@@ -73,15 +73,15 @@ def inference(args):
         all_names = [extract_title_with_year(v) for v in db.values()]
     documents = [doc[:prompter.max_char_len * 10] for doc in documents]
 
-    print( list(db.values())[:10])
-    print(documents[:10])
-    all_names_prev = [extract_title_with_year(v) for v in documents]
-    if len(all_names) != len(all_names_prev):
-        print("Length of all_names_prev does not match length of all_names")
-    else:
-        for i in range(len(all_names)):
-            if all_names_prev[i] != all_names[i]:
-                print(all_names_prev[i], all_names[i])
+    # print( list(db.values())[:10])
+    # print(documents[:10])
+    # all_names_prev = [extract_title_with_year(v) for v in documents]
+    # if len(all_names) != len(all_names_prev):
+    #     print("Length of all_names_prev does not match length of all_names")
+    # else:
+    #     for i in range(len(all_names)):
+    #         if all_names_prev[i] != all_names[i]:
+    #             print(all_names_prev[i], all_names[i])
 
     if args.debug_mode:
         documents = documents[:12]
@@ -102,7 +102,7 @@ def inference(args):
     rec_lists = [[name2id[i]] for i in labels if i in name2id]  # target item id로 바꿔서 저장
     print(f"rec_lists: {len(rec_lists)}")
     rec_lists_prev = [[name2id[i]] for i in labels]  # target item id로 바꿔서 저장
-    print(f"(temp) rec_lists_prev: {len(rec_lists_prev)}")
+    # print(f"(temp) rec_lists_prev: {len(rec_lists_prev)}")
 
     # Loads the model for both capabilities; If you only need embedding pass `mode="embedding"` to save memory (no lm head)
     model = GritLM("GritLM/GritLM-7B", mode='embedding', torch_dtype="auto")
@@ -208,8 +208,8 @@ def inference(args):
 
         max_rank += max_topk_sim_indices.tolist()  # extend
         passages += gatherd_selected_passage_idx.tolist()
-        print('rank length:', len(max_rank))
-        print('passages length:', len(passages))
+        # print('rank length:', len(max_rank))
+        # print('passages length:', len(passages))
 
         # mean pooling
         cos_sim_mean = cos_sim.view(len(q_rep), len(name2id), len(documents) // len(name2id))
@@ -238,17 +238,17 @@ def inference(args):
 
     # Hit@k 성능 확인
     print('model path:', model_path)
-    print('Max pooling')
-    recall_score(rec_lists, max_rank, ks=[1, 3, 5, 10, 20, 50])
-    print()
-
-    print('Mean pooling')
-    recall_score(rec_lists, mean_rank, ks=[1, 3, 5, 10, 20, 50])
-    print()
+    # print('Max pooling')
+    # recall_score(rec_lists, max_rank, ks=[1, 3, 5, 10, 20])
+    # print()
+    #
+    # print('Mean pooling')
+    # recall_score(rec_lists, mean_rank, ks=[1, 3, 5, 10, 20])
+    # print()
 
     for mean_k in range(1, len(list(db.values())[0]) + 1):
         print(f'Top-{mean_k} Mean pooling')
-        recall_score(rec_lists, mean_k_rank[mean_k - 1], ks=[1, 3, 5, 10, 20, 50])
+        recall_score(rec_lists, mean_k_rank[mean_k - 1], ks=[1, 3, 5, 10, 20])
         print()
 
     if args.store_results:
