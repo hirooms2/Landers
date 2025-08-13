@@ -221,7 +221,7 @@ def inference(args):
 
         mean_rank += mean_topk_sim_indices.tolist()
 
-        # top-1 mean pooling
+        # top-k mean pooling
         for mean_k in range(1, len(list(db.values())[0]) + 1):
             top1_cos_sim_mean_indices = torch.topk(cos_sim_mean, k=mean_k, dim=2).indices  # [B, I, k]
             top1_cos_sim_mean_value = torch.topk(cos_sim_mean, k=mean_k, dim=-1).values  # [B, I, k]
@@ -233,6 +233,11 @@ def inference(args):
                                                                                dim=-1)
 
             mean_k_rank[mean_k - 1].extend(top1_mean_topk_sim_indices.tolist())
+
+
+        # Adaptive-k pooling
+
+
 
         print('rank length:', len(mean_rank))
 
@@ -264,7 +269,7 @@ def inference(args):
             # test_data[i]["cand_list"] = ranked_list
             test_data[i]["max_cand_list"] = max_item_list
             test_data[i]["mean_cand_list"] = mean_item_list
-            test_data[i]["cosine_value"] = cosine_value
+            # test_data[i]["cosine_value"] = cosine_value
 
             for mean_k in range(1, len(list(db.values())[0]) + 1):
                 top3_mean_item_list = [id2name[j] for j in mean_k_rank[mean_k - 1][i]][:args.top_k]
