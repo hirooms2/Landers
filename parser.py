@@ -19,10 +19,11 @@ def parse_args():
     parser.add_argument('--passage_max_len', type=int, default='1024')
     parser.add_argument("--store_results", action='store_true', help="store or not")
     parser.add_argument('--tau', type=float, default=1.0)
-    parser.add_argument('--instruction_aug', action='store_true')
+    # parser.add_argument('--instruction_aug', action='store_true')
     parser.add_argument('--pooling', type=str, default=' ')
-    parser.add_argument('--passage_num', type=int, default=5)
+    # parser.add_argument('--passage_num', type=int, default=5)
     parser.add_argument('--top_k', type=int, default=20)
+    parser.add_argument("--category_aware_pooling", action='store_true', help="do category aware pooling or not")
 
     parser.add_argument('--debug_mode', type=bool, default=False)
 

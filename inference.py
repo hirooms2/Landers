@@ -161,7 +161,7 @@ def inference(args):
     print("mask shape: ", masks.shape)
     print("mask sum: ", torch.sum(masks))
 
-    max_rank, mean_rank = [], []
+    max_rank, mean_rank, category_mean_reank = [], [], []
     num_categories = len(list(db.values())[0])
     print("num_categories: ", num_categories)
     mean_k_rank = [[] for _ in range(num_categories)]
@@ -235,8 +235,20 @@ def inference(args):
             mean_k_rank[mean_k - 1].extend(top1_mean_topk_sim_indices.tolist())
 
 
-        # Adaptive-k pooling
+        # category-aware pooling
+        if args.category_aware_pooling:
+            category_mask = torch.tensor([query['category_mask'] for query in batch_queries]) # [B, C]
+            category_mask = category_mask.repeat(len(q_rep), len(name2id), 1) # [B, I, C]
+            mask_tensor = mask_tensor.mul(category_mask)
 
+            cos_sim_category = cos_sim.view(len(q_rep), len(name2id), len(documents) // len(name2id))
+            cos_sim_category = cos_sim_category * mask_tensor
+            sum_sim = cos_sim_category.sum(dim=-1)  # [B, num_items]
+            passage_count = mask_tensor.sum(dim=-1)
+            category_mean_pooled_sim = sum_sim / (passage_count + 1e-10)
+            mean_topk_sim_values, mean_topk_sim_indices = torch.topk(category_mean_pooled_sim, k=args.top_k, dim=-1)
+
+            category_mean_reank += mean_topk_sim_indices.tolist()
 
 
         print('rank length:', len(mean_rank))
