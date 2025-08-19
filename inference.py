@@ -161,7 +161,7 @@ def inference(args):
     print("mask shape: ", masks.shape)
     print("mask sum: ", torch.sum(masks))
 
-    max_rank, mean_rank, category_mean_reank = [], [], []
+    max_rank, mean_rank, category_mean_rerank = [], [], []
     num_categories = len(list(db.values())[0])
     print("num_categories: ", num_categories)
     mean_k_rank = [[] for _ in range(num_categories)]
@@ -248,7 +248,7 @@ def inference(args):
             category_mean_pooled_sim = sum_sim / (passage_count + 1e-10)
             mean_topk_sim_values, mean_topk_sim_indices = torch.topk(category_mean_pooled_sim, k=args.top_k, dim=-1)
 
-            category_mean_reank += mean_topk_sim_indices.tolist()
+            category_mean_rerank += mean_topk_sim_indices.tolist()
 
 
         print('rank length:', len(mean_rank))
@@ -271,7 +271,7 @@ def inference(args):
     
     if args.category_aware_pooling:
         print("Category-aware pooling")
-        recall_score(rec_lists, category_mean_reank, ks=[1,3,5,10])
+        recall_score(rec_lists, category_mean_rerank, ks=[1,3,5,10])
     
     if args.store_results:
         for i in tqdm(range(len(max_rank))):
