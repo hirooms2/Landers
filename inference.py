@@ -237,8 +237,8 @@ def inference(args):
 
         # category-aware pooling
         if args.category_aware_pooling:
-            category_mask = torch.tensor([query['category_mask'] for query in batch_queries]) # [B, C]
-            category_mask = category_mask.repeat(len(q_rep), len(name2id), 1) # [B, I, C]
+            category_mask = torch.tensor([query['category_mask'] for query in test_data[i: i + args.batch_size]]) # [B, C]
+            category_mask = category_mask.unsqueeze(1).expand(-1, len(name2id), -1) # [B, I, C]
             mask_tensor = mask_tensor.mul(category_mask)
 
             cos_sim_category = cos_sim.view(len(q_rep), len(name2id), len(documents) // len(name2id))
@@ -268,6 +268,11 @@ def inference(args):
         recall_score(rec_lists, mean_k_rank[mean_k - 1], ks=[1, 3, 5, 10, 20])
         print()
 
+    
+    if args.category_aware_pooling:
+        print("Category-aware pooling")
+        recall_score(rec_lists, category_mean_reank, ks=[1,3,5,10])
+    
     if args.store_results:
         for i in tqdm(range(len(max_rank))):
             # ranked_list = {j: id2name[j] for j in rank[i]}
