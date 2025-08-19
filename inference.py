@@ -251,8 +251,8 @@ def inference(args):
 
             category_mean_rerank += mean_topk_sim_indices.tolist()
 
-            topk_passage_indices = torch.topk(cos_sim_category, k=args.top_k, dim=-1).indices
-            category_aware_passages += topk_passage_indices.tolist()
+            # topk_passage_indices = torch.topk(cos_sim_category, k=args.top_k, dim=-1).indices
+            # category_aware_passages += topk_passage_indices.tolist()
 
 
         print('rank length:', len(mean_rank))
@@ -296,9 +296,9 @@ def inference(args):
                 top3_mean_item_list = [id2name[j] for j in mean_k_rank[mean_k - 1][i]][:args.top_k]
                 test_data[i][f"top_{mean_k}mean_cand_list"] = top3_mean_item_list
 
-            if args.category_aware_pooling:
-                category_aware_passage_list = [documents[j] for j in category_aware_passages[i]]
-                test_data[i]["category_aware_passage_list"] = category_aware_passage_list
+            # if args.category_aware_pooling:
+            #     category_aware_passage_list = [documents[j] for j in category_aware_passages[i]]
+            #     test_data[i]["category_aware_passage_list"] = category_aware_passage_list
 
 
             if passages:
